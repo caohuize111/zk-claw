@@ -81,7 +81,7 @@ contract MultiStationConsensus {
     }
 
     /// @notice Check consensus across all stations in a group
-    function checkConsensus(uint256 groupId) external returns (ConsensusResult memory) {
+    function checkConsensus(uint256 groupId) external onlyAdmin returns (ConsensusResult memory) {
         ConsensusGroup storage g = groups[groupId];
         require(g.active, "Group not active");
 
@@ -113,6 +113,11 @@ contract MultiStationConsensus {
 
     function getGroupStationIds(uint256 groupId) external view returns (uint256[] memory) {
         return groups[groupId].stationIds;
+    }
+
+    function deactivateGroup(uint256 groupId) external onlyAdmin {
+        require(groups[groupId].active, "Already inactive");
+        groups[groupId].active = false;
     }
 
     // --- Internal helpers (split to avoid stack-too-deep) ---

@@ -90,7 +90,7 @@ contract BatchVerifier {
         uint256[][] calldata instances,
         uint256[] calldata agentIds,
         uint256[] calldata stationIds
-    ) external {
+    ) external onlyAdmin {
         require(proofs.length == instances.length, "Length mismatch");
         require(proofs.length == agentIds.length, "Length mismatch");
         require(proofs.length == stationIds.length, "Length mismatch");
@@ -124,7 +124,7 @@ contract BatchVerifier {
         AggBatchParams calldata params,
         bytes[] calldata proofs,
         uint256[][] calldata instances
-    ) external {
+    ) external onlyAdmin {
         uint256 n = proofs.length;
         require(n > 0, "Empty batch");
         require(n == params.proofHashes.length, "Hash count mismatch");
@@ -275,6 +275,21 @@ contract BatchVerifier {
         gateway = ZKClawGateway(_gateway);
     }
 
+    // ── Two-Step Admin Transfer ──
+
+    address public pendingAdmin;
+
+    function transferAdmin(address newAdmin) external onlyAdmin {
+        require(newAdmin != address(0), "Invalid admin address");
+        pendingAdmin = newAdmin;
+    }
+
+    function acceptAdmin() external {
+        require(msg.sender == pendingAdmin, "Not pending admin");
+        admin = pendingAdmin;
+        pendingAdmin = address(0);
+    }
+
     // ═══════════════════════════════════════════════════════════════
     // INTERNAL: Merkle Root Computation
     // ═══════════════════════════════════════════════════════════════
@@ -284,6 +299,7 @@ contract BatchVerifier {
     function _computeMerkleRoot(bytes32[] calldata leaves) internal pure returns (bytes32) {
         uint256 n = leaves.length;
         require(n > 0, "Empty leaves");
+        require(n <= 1024, "Batch too large");
         if (n == 1) return leaves[0];
 
         // Pad to next power of 2

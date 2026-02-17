@@ -40,6 +40,7 @@ contract DePINOracle {
         bool signatureVerified
     );
     event AdminTransferred(address indexed oldAdmin, address indexed newAdmin);
+    event StationKeyRotated(uint256 indexed stationId, address newAddress);
 
     modifier onlyAdmin() {
         require(msg.sender == admin, "Only admin");
@@ -137,5 +138,16 @@ contract DePINOracle {
 
     function verifyDataHash(uint256 stationId, bytes32 expectedHash) external view returns (bool) {
         return latestData[stationId].dataHash == expectedHash;
+    }
+
+    /// @notice Rotate a station's hardware key (admin only)
+    /// @param stationId The station to rotate
+    /// @param newAddress The new hardware public key / address
+    function rotateStationKey(uint256 stationId, address newAddress) external onlyAdmin {
+        require(registeredStations[stationId], "Station not registered");
+        require(newAddress != address(0), "Invalid address");
+        stationAddresses[stationId] = newAddress;
+        stationNonces[stationId]++;
+        emit StationKeyRotated(stationId, newAddress);
     }
 }

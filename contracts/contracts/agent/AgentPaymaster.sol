@@ -7,12 +7,14 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 /// @notice Allows approved AI agents to execute calls with sponsored gas.
 contract AgentPaymaster is ReentrancyGuard {
     address public admin;
+    address public pendingAdmin;
     mapping(address => bool) public approvedAgents;
     uint256 public totalSponsored;
 
     event GasSponsored(address indexed agent, address indexed target, uint256 gasUsed, uint256 gasCost);
     event AgentApproved(address indexed agent);
     event AgentRevoked(address indexed agent);
+    event AdminTransferred(address indexed oldAdmin, address indexed newAdmin);
 
     modifier onlyAdmin() {
         require(msg.sender == admin, "Only admin");
@@ -53,19 +55,20 @@ contract AgentPaymaster is ReentrancyGuard {
         uint256 gasUsed = gasBefore - gasleft();
         uint256 effectiveGasPrice = tx.gasprice < maxGasPrice ? tx.gasprice : maxGasPrice;
         uint256 gasCost = (gasUsed + GAS_OVERHEAD) * effectiveGasPrice;
-        totalSponsored += gasCost;
 
         // Reimburse gas cost to the agent from Paymaster treasury
         if (address(this).balance >= gasCost) {
             (bool refunded, ) = msg.sender.call{value: gasCost}("");
-            // If refund fails (e.g., agent is a contract that rejects BNB), continue without revert
-            if (!refunded) {
-                emit GasSponsored(msg.sender, target, gasUsed, 0);
+            if (refunded) {
+                // Only account for sponsored gas if refund actually succeeded
+                totalSponsored += gasCost;
+                emit GasSponsored(msg.sender, target, gasUsed, gasCost);
                 return result;
             }
         }
 
-        emit GasSponsored(msg.sender, target, gasUsed, gasCost);
+        // Refund failed or balance insufficient
+        emit GasSponsored(msg.sender, target, gasUsed, 0);
         return result;
     }
 
@@ -82,5 +85,17 @@ contract AgentPaymaster is ReentrancyGuard {
 
     function balance() external view returns (uint256) {
         return address(this).balance;
+    }
+
+    function transferAdmin(address newAdmin) external onlyAdmin {
+        require(newAdmin != address(0), "Invalid");
+        pendingAdmin = newAdmin;
+    }
+
+    function acceptAdmin() external {
+        require(msg.sender == pendingAdmin, "Not pending admin");
+        emit AdminTransferred(admin, pendingAdmin);
+        admin = pendingAdmin;
+        pendingAdmin = address(0);
     }
 }

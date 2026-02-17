@@ -1,13 +1,15 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+
 /// @title StakeSlash - Staking and slashing for DePIN station operators
 /// @notice Station operators stake BNB as collateral. Authorized slashers can penalize
 ///         misbehaving operators by slashing a percentage of their stake.
 /// @dev Slashing is currently triggered manually by authorized slashers (governance/admin).
 ///      Automatic slashing triggered by ZKClawGateway verification failures is planned
 ///      but not yet implemented.
-contract StakeSlash {
+contract StakeSlash is ReentrancyGuard {
 
     address public admin;
 
@@ -41,7 +43,7 @@ contract StakeSlash {
     }
 
     /// @notice Unstake BNB (partial or full)
-    function unstake(uint256 amount) external {
+    function unstake(uint256 amount) external nonReentrant {
         require(amount > 0, "Amount must be > 0");
         uint256 current = stakes[msg.sender];
         require(current >= amount, "Insufficient stake");
@@ -88,7 +90,7 @@ contract StakeSlash {
     }
 
     /// @notice Withdraw accumulated slashed funds to admin
-    function withdrawSlashed() external onlyAdmin {
+    function withdrawSlashed() external onlyAdmin nonReentrant {
         uint256 amount = totalSlashed;
         require(amount > 0, "Nothing to withdraw");
         require(address(this).balance >= amount, "Insufficient balance");

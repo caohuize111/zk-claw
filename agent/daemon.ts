@@ -31,10 +31,10 @@ const RPC_URL =
 const API_URL = process.env.API_URL || "http://localhost:3000";
 const GATEWAY_ADDRESS =
   process.env.GATEWAY_ADDRESS ||
-  "0xae765e473f5549607093B1685e3199Bd6f0AD058";
+  "0xC9A6624cEB63F805a27200876abCF656cba7Bbab";
 const ORACLE_ADDRESS =
   process.env.ORACLE_ADDRESS ||
-  "0xed7B5A8fc0249BdfB70363C083Ea828976eDFe89";
+  "0x51541674cA5E54a496e2A0F157d32fdBA04E3a48";
 const STATION_ID = parseInt(process.env.STATION_ID || "1001", 10);
 
 const POLL_INTERVAL_MS = 30_000; // 30 seconds for continuous mode
@@ -159,6 +159,7 @@ async function submitDePINData(
     signature
   );
   const receipt = await tx.wait();
+  if (receipt.status === 0) throw new Error("Transaction reverted: " + receipt.hash);
   log("L1 DePIN", `Data submitted to oracle. TX: ${shortHash(receipt.hash)}`);
   return receipt.hash;
 }
@@ -181,14 +182,22 @@ async function generateZKProof(
 ): Promise<ProveResponse> {
   log("L2 ZKML", "Generating ZK proof via /api/prove ...");
 
-  const res = await fetch(`${API_URL}/api/prove`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Api-Key": PROVER_API_KEY,
-    },
-    body: JSON.stringify(weather),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 300_000);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}/api/prove`, {
+      method: "POST",
+      signal: controller.signal,
+      headers: {
+        "Content-Type": "application/json",
+        "X-Api-Key": PROVER_API_KEY,
+      },
+      body: JSON.stringify(weather),
+    });
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!res.ok) {
     const errText = await res.text();
@@ -226,6 +235,7 @@ async function submitOnChain(
   );
 
   const receipt = await tx.wait();
+  if (receipt.status === 0) throw new Error("Transaction reverted: " + receipt.hash);
   log("L4 Chain", `TX confirmed: ${shortHash(receipt.hash)}`);
   return receipt.hash;
 }

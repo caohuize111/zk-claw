@@ -14,17 +14,38 @@ contract EntryPoint {
         bytes signature;
     }
 
+    address public admin;
+    mapping(address => bool) public trustedBundlers;
     mapping(address => uint256) public nonces;
 
     event UserOperationEvent(bytes32 indexed userOpHash, address indexed sender, bool success);
 
+    constructor() {
+        admin = msg.sender;
+    }
+
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "Only admin");
+        _;
+    }
+
+    /// @notice Set or revoke a trusted bundler
+    function setBundler(address bundler, bool trusted) external onlyAdmin {
+        trustedBundlers[bundler] = trusted;
+    }
+
     /// @notice Execute a batch of user operations
     function handleOps(PackedUserOperation[] calldata ops) external {
+        require(trustedBundlers[msg.sender] || msg.sender == admin, "Not authorized bundler");
+
         for (uint256 i = 0; i < ops.length; i++) {
             PackedUserOperation calldata op = ops[i];
 
             // Verify nonce
             require(op.nonce == nonces[op.sender], "Invalid nonce");
+
+            // Increment nonce immediately after check to prevent reentrant replay
+            nonces[op.sender]++;
 
             // Compute userOpHash
             bytes32 userOpHash = getUserOpHash(op);
@@ -40,9 +61,6 @@ contract EntryPoint {
             } else {
                 success = true;
             }
-
-            // Increment nonce
-            nonces[op.sender]++;
 
             emit UserOperationEvent(userOpHash, op.sender, success);
         }

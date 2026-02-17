@@ -102,6 +102,9 @@ contract ZKClawGateway is ReentrancyGuard {
         bytes32 dataHash
     );
     event ValidationRegistryError(uint256 indexed agentId, bytes32 proofHash, string reason);
+    event ClaimPayoutSet(uint256 indexed agentId, address payoutAddress, uint256 amount);
+    event BatchVerifierUpdated(address indexed newBatchVerifier);
+    event DeviceUnbound(uint256 indexed stationId);
     event DataAnchored(
         uint256 indexed recordIndex,
         string greenFieldURI,
@@ -401,6 +404,13 @@ contract ZKClawGateway is ReentrancyGuard {
         emit DeviceBound(stationId, deviceAddress);
     }
 
+    /// @notice Unbind a DePIN device from a station
+    function unbindDevice(uint256 stationId) external onlyAdmin {
+        require(boundDevices[stationId] != address(0), "Not bound");
+        delete boundDevices[stationId];
+        emit DeviceUnbound(stationId);
+    }
+
     /// @notice Trustless atomic verification: DePIN ECDSA signature + ZK proof + normalization
     ///         in a single transaction. No oracle read -- the Gateway IS the verifier.
     /// @dev This is the "holy grail" function: device signature proves data origin,
@@ -560,8 +570,10 @@ contract ZKClawGateway is ReentrancyGuard {
     // --- Admin ---
 
     function setClaimPayout(uint256 agentId, address payoutAddress, uint256 amount) external onlyAdmin {
+        require(payoutAddress != address(0) || amount == 0, "Invalid payout config");
         claimPayoutAddresses[agentId] = payoutAddress;
         claimPayoutAmounts[agentId] = amount;
+        emit ClaimPayoutSet(agentId, payoutAddress, amount);
     }
 
     function setVerifier(address _verifier) external onlyAdmin {
@@ -571,12 +583,14 @@ contract ZKClawGateway is ReentrancyGuard {
 
     function setBatchVerifier(address _batchVerifier) external onlyAdmin {
         batchVerifierAddress = _batchVerifier;
+        emit BatchVerifierUpdated(_batchVerifier);
     }
 
     /// @notice Batch increment reputation for aggregated off-chain proofs (Mode 3)
     /// @dev Called by BatchVerifier.submitAggregatedRoot to bridge aggregated proofs
     ///      into the economic model (NFA reputation + ERC-8004 validation).
     function batchIncrementReputation(uint256[] calldata agentIds) external {
+        require(agentIds.length <= 100, "Batch too large");
         require(msg.sender == batchVerifierAddress || msg.sender == admin, "Not authorized");
         for (uint256 i = 0; i < agentIds.length; i++) {
             try nfa.incrementReputation(agentIds[i]) {} catch {}

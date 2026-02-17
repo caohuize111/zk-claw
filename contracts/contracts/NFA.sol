@@ -247,6 +247,7 @@ contract NFA is ERC721Enumerable, ReentrancyGuard, Pausable, Ownable, IBAP578 {
     ///      Only gateway can call this to prevent reputation inflation by logic contracts.
     function incrementReputation(uint256 tokenId) external {
         require(msg.sender == gatewayAddress, "Only gateway");
+        _requireOwned(tokenId);
         PredictionProfile storage p = _profiles[tokenId];
         p.totalPredictions += 1;
         p.correctPredictions += 1;
@@ -260,6 +261,7 @@ contract NFA is ERC721Enumerable, ReentrancyGuard, Pausable, Ownable, IBAP578 {
     /// @notice Record a correct prediction (gateway only)
     function recordCorrectPrediction(uint256 tokenId) external {
         require(msg.sender == gatewayAddress, "Only gateway");
+        _requireOwned(tokenId);
         PredictionProfile storage p = _profiles[tokenId];
         require(p.correctPredictions < p.totalPredictions, "Cannot exceed total predictions");
         p.correctPredictions += 1;

@@ -20,9 +20,15 @@ BN254_P = 2188824287183927522224640574525727508854836440041603434369820418657580
 HALF_P = BN254_P // 2
 
 
+_norm_params_cache = None
+
+
 def _get_norm_params():
-    with open(os.path.join(ZKML_DIR, "norm_params.json")) as f:
-        return json.load(f)
+    global _norm_params_cache
+    if _norm_params_cache is None:
+        with open(os.path.join(ZKML_DIR, "norm_params.json")) as f:
+            _norm_params_cache = json.load(f)
+    return _norm_params_cache
 
 
 def _normalize(raw: list[float]) -> list[float]:

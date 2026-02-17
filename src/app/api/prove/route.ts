@@ -91,6 +91,14 @@ function checkRateLimit(ip: string): boolean {
   const entry = rateLimitMap.get(ip);
   if (!entry || now > entry.resetAt) {
     rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+
+    // Cleanup expired entries every 100 checks
+    if (rateLimitMap.size > 100) {
+      rateLimitMap.forEach((val, key) => {
+        if (now > val.resetAt) rateLimitMap.delete(key);
+      });
+    }
+
     return true;
   }
   if (entry.count >= RATE_LIMIT_MAX) return false;

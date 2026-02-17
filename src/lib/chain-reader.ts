@@ -18,41 +18,45 @@ export async function fetchAgents() {
     });
 
     const count = Number(totalAgents);
-    const agents = [];
 
-    for (let i = 0; i < count; i++) {
-      const [metadata, profile] = await Promise.all([
-        publicClient.readContract({
-          address: CONTRACTS.NFA as `0x${string}`,
-          abi: NFA_ABI,
-          functionName: "getAgentMetadata",
-          args: [BigInt(i)],
-        }),
-        publicClient.readContract({
-          address: CONTRACTS.NFA as `0x${string}`,
-          abi: NFA_ABI,
-          functionName: "getProfile",
-          args: [BigInt(i)],
-        }),
-      ]);
+    const agentPromises = Array.from({ length: count }, async (_, i) => {
+      try {
+        const [metadata, profile] = await Promise.all([
+          publicClient.readContract({
+            address: CONTRACTS.NFA as `0x${string}`,
+            abi: NFA_ABI,
+            functionName: "getAgentMetadata",
+            args: [BigInt(i)],
+          }),
+          publicClient.readContract({
+            address: CONTRACTS.NFA as `0x${string}`,
+            abi: NFA_ABI,
+            functionName: "getProfile",
+            args: [BigInt(i)],
+          }),
+        ]);
 
-      const meta = metadata as any;
-      const prof = profile as any;
+        const meta = metadata as any;
+        const prof = profile as any;
 
-      agents.push({
-        id: i,
-        name: meta.name,
-        persona: meta.persona,
-        vaultURI: meta.vaultURI,
-        vaultHash: meta.vaultHash,
-        totalPredictions: Number(prof.totalPredictions),
-        correctPredictions: Number(prof.correctPredictions),
-        reputationScore: Number(prof.reputationScore),
-        learningRoot: prof.learningRoot,
-      });
-    }
+        return {
+          id: i,
+          name: meta.name,
+          persona: meta.persona,
+          vaultURI: meta.vaultURI,
+          vaultHash: meta.vaultHash,
+          totalPredictions: Number(prof.totalPredictions),
+          correctPredictions: Number(prof.correctPredictions),
+          reputationScore: Number(prof.reputationScore),
+          learningRoot: prof.learningRoot,
+        };
+      } catch {
+        return null;
+      }
+    });
 
-    return agents;
+    const results = await Promise.all(agentPromises);
+    return results.filter((r): r is NonNullable<typeof r> => r !== null);
   } catch (e) {
     console.error("fetchAgents error:", e);
     return [];
@@ -112,48 +116,53 @@ export async function fetchRecords(limit = 10) {
     });
 
     const count = Number(totalRecords);
-    const records = [];
     const start = Math.max(0, count - limit);
+    const indices = Array.from({ length: count - start }, (_, k) => count - 1 - k);
 
-    for (let i = count - 1; i >= start; i--) {
-      const record = (await publicClient.readContract({
-        address: CONTRACTS.ZKClawGateway as `0x${string}`,
-        abi: [{
-          inputs: [{ name: "index", type: "uint256" }],
-          name: "getRecord",
-          outputs: [{
-            components: [
-              { name: "agentId", type: "uint256" },
-              { name: "proofHash", type: "bytes32" },
-              { name: "inputHash", type: "bytes32" },
-              { name: "publicInstances", type: "uint256[]" },
-              { name: "timestamp", type: "uint256" },
-              { name: "verified", type: "bool" },
-              { name: "decision", type: "uint8" },
-              { name: "dataAuthentic", type: "bool" },
-            ],
-            type: "tuple",
+    const recordPromises = indices.map(async (i) => {
+      try {
+        const record = (await publicClient.readContract({
+          address: CONTRACTS.ZKClawGateway as `0x${string}`,
+          abi: [{
+            inputs: [{ name: "index", type: "uint256" }],
+            name: "getRecord",
+            outputs: [{
+              components: [
+                { name: "agentId", type: "uint256" },
+                { name: "proofHash", type: "bytes32" },
+                { name: "inputHash", type: "bytes32" },
+                { name: "publicInstances", type: "uint256[]" },
+                { name: "timestamp", type: "uint256" },
+                { name: "verified", type: "bool" },
+                { name: "decision", type: "uint8" },
+                { name: "dataAuthentic", type: "bool" },
+              ],
+              type: "tuple",
+            }],
+            stateMutability: "view",
+            type: "function",
           }],
-          stateMutability: "view",
-          type: "function",
-        }],
-        functionName: "getRecord",
-        args: [BigInt(i)],
-      })) as any;
+          functionName: "getRecord",
+          args: [BigInt(i)],
+        })) as any;
 
-      records.push({
-        index: i,
-        agentId: Number(record.agentId),
-        proofHash: record.proofHash,
-        inputHash: record.inputHash,
-        timestamp: Number(record.timestamp),
-        verified: record.verified,
-        decision: record.decision === 1 ? "CLAIM" : "NORMAL",
-        dataAuthentic: record.dataAuthentic,
-      });
-    }
+        return {
+          index: i,
+          agentId: Number(record.agentId),
+          proofHash: record.proofHash,
+          inputHash: record.inputHash,
+          timestamp: Number(record.timestamp),
+          verified: record.verified,
+          decision: record.decision === 1 ? "CLAIM" : "NORMAL",
+          dataAuthentic: record.dataAuthentic,
+        };
+      } catch {
+        return null;
+      }
+    });
 
-    return records;
+    const results = await Promise.all(recordPromises);
+    return results.filter(Boolean);
   } catch (e) {
     console.error("fetchRecords error:", e);
     return [];
@@ -175,46 +184,50 @@ export async function fetchAgentRecords(agentId: number) {
       args: [BigInt(agentId)],
     })) as bigint[];
 
-    const records = [];
-    for (const idx of indices) {
-      const record = (await publicClient.readContract({
-        address: CONTRACTS.ZKClawGateway as `0x${string}`,
-        abi: [{
-          inputs: [{ name: "index", type: "uint256" }],
-          name: "getRecord",
-          outputs: [{
-            components: [
-              { name: "agentId", type: "uint256" },
-              { name: "proofHash", type: "bytes32" },
-              { name: "inputHash", type: "bytes32" },
-              { name: "publicInstances", type: "uint256[]" },
-              { name: "timestamp", type: "uint256" },
-              { name: "verified", type: "bool" },
-              { name: "decision", type: "uint8" },
-              { name: "dataAuthentic", type: "bool" },
-            ],
-            type: "tuple",
+    const recordPromises = indices.map(async (idx) => {
+      try {
+        const record = (await publicClient.readContract({
+          address: CONTRACTS.ZKClawGateway as `0x${string}`,
+          abi: [{
+            inputs: [{ name: "index", type: "uint256" }],
+            name: "getRecord",
+            outputs: [{
+              components: [
+                { name: "agentId", type: "uint256" },
+                { name: "proofHash", type: "bytes32" },
+                { name: "inputHash", type: "bytes32" },
+                { name: "publicInstances", type: "uint256[]" },
+                { name: "timestamp", type: "uint256" },
+                { name: "verified", type: "bool" },
+                { name: "decision", type: "uint8" },
+                { name: "dataAuthentic", type: "bool" },
+              ],
+              type: "tuple",
+            }],
+            stateMutability: "view",
+            type: "function",
           }],
-          stateMutability: "view",
-          type: "function",
-        }],
-        functionName: "getRecord",
-        args: [idx],
-      })) as any;
+          functionName: "getRecord",
+          args: [idx],
+        })) as any;
 
-      records.push({
-        index: Number(idx),
-        agentId: Number(record.agentId),
-        proofHash: record.proofHash,
-        inputHash: record.inputHash,
-        timestamp: Number(record.timestamp),
-        verified: record.verified,
-        decision: record.decision === 1 ? "CLAIM" : "NORMAL",
-        dataAuthentic: record.dataAuthentic,
-      });
-    }
+        return {
+          index: Number(idx),
+          agentId: Number(record.agentId),
+          proofHash: record.proofHash,
+          inputHash: record.inputHash,
+          timestamp: Number(record.timestamp),
+          verified: record.verified,
+          decision: record.decision === 1 ? "CLAIM" : "NORMAL",
+          dataAuthentic: record.dataAuthentic,
+        };
+      } catch {
+        return null;
+      }
+    });
 
-    return records;
+    const results = await Promise.all(recordPromises);
+    return results.filter(Boolean);
   } catch (e) {
     console.error("fetchAgentRecords error:", e);
     return [];

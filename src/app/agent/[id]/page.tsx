@@ -78,7 +78,12 @@ export default function AgentProfilePage() {
       : 0;
 
   // TBA reads
-  const tokenId = BigInt(agentId);
+  let tokenId: bigint;
+  try {
+    tokenId = BigInt(agentId);
+  } catch {
+    return <div className="p-8 text-center text-destructive">Invalid agent ID</div>;
+  }
   const nfaAddr = CONTRACTS.NFA as `0x${string}`;
 
   const { data: tbaAddress } = useReadContract({

@@ -3,7 +3,7 @@
 import { NavBar } from "@/components/NavBar";
 import { useState } from "react";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt, useSendTransaction } from "wagmi";
-import { parseEther, formatEther } from "viem";
+import { parseEther, formatEther, isAddress } from "viem";
 import { CONTRACTS } from "@/lib/wagmi-config";
 import { PAYMASTER_ABI } from "@/lib/contracts";
 import {
@@ -66,6 +66,7 @@ export default function PaymasterPage() {
 
   const handleApprove = () => {
     if (!approveAddr) return;
+    if (!isAddress(approveAddr)) { alert("Invalid address"); return; }
     approveAgent({
       address: paymasterAddr,
       abi: PAYMASTER_ABI,
@@ -76,6 +77,7 @@ export default function PaymasterPage() {
 
   const handleRevoke = () => {
     if (!revokeAddr) return;
+    if (!isAddress(revokeAddr)) { alert("Invalid address"); return; }
     revokeAgent({
       address: paymasterAddr,
       abi: PAYMASTER_ABI,
@@ -104,6 +106,7 @@ export default function PaymasterPage() {
 
   const handleCheck = async () => {
     if (!checkAddr) return;
+    if (!isAddress(checkAddr)) { alert("Invalid address"); return; }
     const result = await refetchApproved();
     setCheckResult(result.data as boolean);
   };

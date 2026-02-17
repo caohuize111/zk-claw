@@ -11,8 +11,11 @@ RUN apt-get update && \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Create non-root user
+RUN useradd -m -s /bin/bash appuser
+
 # Copy service code
-COPY main.py celery_app.py worker.py ./
+COPY --chown=appuser:appuser main.py celery_app.py worker.py ./
 
 # Copy ZKML artifacts (mounted as volume in production)
 # COPY ../zkml /app/zkml
@@ -21,5 +24,7 @@ ENV ZKML_DIR=/app/zkml
 ENV MAX_CONCURRENT_TASKS=4
 
 EXPOSE 8080
+
+USER appuser
 
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]

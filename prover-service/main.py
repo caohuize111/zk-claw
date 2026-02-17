@@ -12,6 +12,7 @@ For production, replace in-memory task store with Redis.
 
 import asyncio
 import hashlib
+import hmac
 import json
 import os
 import shutil
@@ -31,7 +32,7 @@ PROVER_API_KEY = os.environ.get("PROVER_API_KEY", "dev-key-change-me")
 
 
 async def verify_api_key(x_api_key: str = Header(None)):
-    if x_api_key != PROVER_API_KEY:
+    if not x_api_key or not hmac.compare_digest(x_api_key, PROVER_API_KEY):
         raise HTTPException(status_code=401, detail="Invalid API key")
 
 
@@ -51,7 +52,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=os.environ.get("CORS_ORIGINS", "http://localhost:3000").split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -168,7 +169,6 @@ async def health():
     return {
         "status": "ok",
         "ezkl_available": ezkl_available,
-        "zkml_dir": ZKML_DIR,
         "artifacts_exist": os.path.isdir(ARTIFACTS_DIR),
         "active_tasks": sum(1 for t in tasks.values() if t["status"] == "running"),
         "max_concurrent": MAX_CONCURRENT_TASKS,
@@ -196,7 +196,7 @@ async def create_prove_task(req: ProveRequest):
         return TaskResponse(task_id=task_id, status="pending")
 
 
-@app.get("/prove/{task_id}", response_model=TaskResponse)
+@app.get("/prove/{task_id}", response_model=TaskResponse, dependencies=[Depends(verify_api_key)])
 async def get_prove_status(task_id: str):
     if USE_CELERY:
         from celery.result import AsyncResult

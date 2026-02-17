@@ -32,7 +32,14 @@ const STATE_LABELS: Record<number, { label: string; color: string }> = {
 export default function AgentManagePage() {
   const params = useParams();
   const agentId = params.id as string;
-  const tokenId = BigInt(agentId);
+
+  let tokenId: bigint;
+  try {
+    tokenId = BigInt(agentId);
+  } catch {
+    return <div className="p-8 text-center text-destructive">Invalid agent ID</div>;
+  }
+
   const { isConnected } = useAccount();
 
   const [fundAmount, setFundAmount] = useState("");
@@ -152,7 +159,15 @@ export default function AgentManagePage() {
       address: nfaAddr,
       abi: NFA_FULL_ABI,
       functionName: "mint",
-      args: [{ name: mintName, persona: mintPersona, vaultURI: mintVaultURI, vaultHash: zeroHash }],
+      args: [{
+        name: mintName,
+        persona: mintPersona,
+        voiceHash: zeroHash,
+        animationURI: "",
+        vaultURI: mintVaultURI,
+        vaultHash: zeroHash,
+        avatarId: 0,
+      }],
     });
   };
 
