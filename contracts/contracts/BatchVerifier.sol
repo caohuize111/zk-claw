@@ -292,18 +292,7 @@ contract BatchVerifier {
             nodes[i] = bytes32(0);
         }
 
-        // Sort leaves for OZ JS compatibility
-        for (uint256 i = 1; i < n; i++) {
-            bytes32 key = nodes[i];
-            uint256 j = i;
-            while (j > 0 && nodes[j - 1] > key) {
-                nodes[j] = nodes[j - 1];
-                j--;
-            }
-            nodes[j] = key;
-        }
-
-        // Build tree bottom-up
+        // Build tree bottom-up (pair-level sorting matches OpenZeppelin MerkleProof.js)
         while (size > 1) {
             for (uint256 i = 0; i < size / 2; i++) {
                 bytes32 left = nodes[2 * i];

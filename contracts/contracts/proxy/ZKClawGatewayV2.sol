@@ -6,8 +6,10 @@ import "@openzeppelin/contracts/proxy/utils/UUPSUpgradeable.sol";
 import "../interfaces/IHalo2Verifier.sol";
 
 /// @title ZKClawGatewayV2 - UUPS upgradeable version of ZKClawGateway
-/// @notice Demonstrates upgradeability pattern for the gateway.
-///         Uses initialize() instead of constructor for proxy compatibility.
+/// @notice DEMO ONLY - This V2 contract is for UUPS upgrade demonstration.
+///         It lacks replay protection and data authentication checks present in V1.
+///         Do NOT deploy as a replacement for ZKClawGateway.
+/// @dev Uses initialize() instead of constructor for proxy compatibility.
 contract ZKClawGatewayV2 is Initializable, UUPSUpgradeable {
 
     // ── BN254 Field Constants ──

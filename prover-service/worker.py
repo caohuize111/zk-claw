@@ -93,11 +93,11 @@ def prove_inference(self, temperature: float, humidity: float, wind_speed: float
         proof_path = os.path.join(session_dir, "proof.json")
         compiled_path = os.path.join(ARTIFACTS_DIR, "model.compiled")
 
+        import asyncio
+
         res = ezkl.gen_witness(input_path, compiled_path, witness_path)
-        if hasattr(res, "__await__"):
-            import asyncio
-            loop = asyncio.get_event_loop()
-            res = loop.run_until_complete(res)
+        if hasattr(res, "__await__") or asyncio.isfuture(res):
+            asyncio.run(res)
 
         # Step 4: prove
         self.update_state(state="PROVING", meta={"step": "proving", "progress": 50})
@@ -108,6 +108,8 @@ def prove_inference(self, temperature: float, humidity: float, wind_speed: float
             witness_path, compiled_path, pk_path,
             proof_path=proof_path, srs_path=srs_path,
         )
+        if hasattr(res, "__await__") or asyncio.isfuture(res):
+            res = asyncio.run(res)
         if not res:
             raise RuntimeError("EZKL prove returned False")
 
@@ -120,6 +122,8 @@ def prove_inference(self, temperature: float, humidity: float, wind_speed: float
             proof_path, settings_path, vk_path,
             srs_path=srs_path, reduced_srs=False,
         )
+        if hasattr(res, "__await__") or asyncio.isfuture(res):
+            res = asyncio.run(res)
         if not res:
             raise RuntimeError("EZKL verify returned False")
 

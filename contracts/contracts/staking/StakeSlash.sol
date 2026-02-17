@@ -4,6 +4,9 @@ pragma solidity ^0.8.24;
 /// @title StakeSlash - Staking and slashing for DePIN station operators
 /// @notice Station operators stake BNB as collateral. Authorized slashers can penalize
 ///         misbehaving operators by slashing a percentage of their stake.
+/// @dev Slashing is currently triggered manually by authorized slashers (governance/admin).
+///      Automatic slashing triggered by ZKClawGateway verification failures is planned
+///      but not yet implemented.
 contract StakeSlash {
 
     address public admin;
@@ -88,6 +91,7 @@ contract StakeSlash {
     function withdrawSlashed() external onlyAdmin {
         uint256 amount = totalSlashed;
         require(amount > 0, "Nothing to withdraw");
+        require(address(this).balance >= amount, "Insufficient balance");
         totalSlashed = 0;
         (bool success, ) = admin.call{value: amount}("");
         require(success, "BNB transfer failed");

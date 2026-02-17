@@ -100,7 +100,7 @@ export default function AgentManagePage() {
       refetchState();
       refetchBalance();
     }
-  }, [pauseSuccess, unpauseSuccess, terminateSuccess]);
+  }, [pauseSuccess, unpauseSuccess, terminateSuccess, refetchState, refetchBalance]);
 
   const stateNum = agentState !== undefined ? Number(agentState) : -1;
   const stateInfo = STATE_LABELS[stateNum] || { label: "UNKNOWN", color: "text-muted-foreground bg-secondary border-border" };

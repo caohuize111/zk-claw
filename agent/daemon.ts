@@ -45,6 +45,7 @@ const GREENFIELD_RPC_URL = process.env.GREENFIELD_RPC_URL || "";
 const GREENFIELD_CHAIN_ID = process.env.GREENFIELD_CHAIN_ID || "5600";
 const USE_MQTT = process.env.USE_MQTT === "true";
 const USE_GREENFIELD = process.env.USE_GREENFIELD === "true";
+const PROVER_API_KEY = process.env.PROVER_API_KEY || "dev-key-change-me";
 
 // ══════════════════════════════════════════════════════════════
 // Minimal ABIs (ethers.js v6 human-readable)
@@ -60,6 +61,7 @@ const ORACLE_ABI = [
   "function submitWeatherData(uint256 stationId, int256 temperature, uint256 humidity, uint256 windSpeed, uint256 rainfall, bytes signature) external",
   "function getLatestData(uint256 stationId) view returns (tuple(uint256 stationId, int256 temperature, uint256 humidity, uint256 windSpeed, uint256 rainfall, uint256 timestamp, bytes32 dataHash, bool signatureVerified, address recoveredSigner))",
   "function isDataAuthentic(uint256 stationId) view returns (bool)",
+  "function stationNonces(uint256 stationId) view returns (uint256)",
 ];
 
 // ══════════════════════════════════════════════════════════════
@@ -109,15 +111,18 @@ function leHexToBigInt(leHex: string): bigint {
 
 async function generateHardwareSignature(
   signer: ethers.Wallet,
+  oracle: ethers.Contract,
   stationId: number,
   temperature: number,
   humidity: number,
   windSpeed: number,
   rainfall: number
 ): Promise<string> {
+  // Read current nonce from on-chain oracle for replay protection
+  const nonce = await oracle.stationNonces(stationId);
   const packed = ethers.solidityPacked(
-    ["uint256", "int256", "uint256", "uint256", "uint256"],
-    [stationId, temperature, humidity, windSpeed, rainfall]
+    ["uint256", "int256", "uint256", "uint256", "uint256", "uint256"],
+    [stationId, temperature, humidity, windSpeed, rainfall, nonce]
   );
   const hash = ethers.keccak256(packed);
   return signer.signMessage(ethers.getBytes(hash));
@@ -136,6 +141,7 @@ async function submitDePINData(
 
   const signature = await generateHardwareSignature(
     signer,
+    oracle,
     STATION_ID,
     weather.temperature,
     weather.humidity,
@@ -167,15 +173,13 @@ interface ProveResponse {
   publicInstances: string[];
   proofHash: string;
   proofSize: number;
-  verifyTime: number;
+  verifyTime?: number;
 }
 
 async function generateZKProof(
   weather: { temperature: number; humidity: number; windSpeed: number; rainfall: number }
 ): Promise<ProveResponse> {
   log("L2 ZKML", "Generating ZK proof via /api/prove ...");
-
-  const PROVER_API_KEY = process.env.PROVER_API_KEY || "dev-key-change-me";
 
   const res = await fetch(`${API_URL}/api/prove`, {
     method: "POST",

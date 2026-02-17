@@ -1,11 +1,10 @@
 "use client";
 
 import { NavBar } from "@/components/NavBar";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { CONTRACTS } from "@/lib/wagmi-config";
 import { GATEWAY_ABI } from "@/lib/contracts";
-import { useSSE } from "@/hooks/useSSE";
 import {
   CloudRain,
   Cpu,
@@ -96,46 +95,20 @@ export default function VerifyPage() {
     rainfall: 250,
     stationId: 1001,
   });
+  const [agentId, setAgentId] = useState(0);
   const [result, setResult] = useState<ProofResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [pipelineLayer, setPipelineLayer] = useState(0);
   const [layerTimes, setLayerTimes] = useState<number[]>([]);
   const layerStartRef = useRef<number>(0);
-  const [sseTaskId, setSseTaskId] = useState<string | null>(null);
-  const sse = useSSE(sseTaskId);
 
   const { writeContract, isPending: isWriting } = useWriteContract();
-  useWaitForTransactionReceipt({
+  const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: txHash as `0x${string}` | undefined,
   });
 
   const stepIndex = (["input", "proving", "submitting", "complete"] as const).indexOf(step);
-
-  // Map SSE progress to pipeline layers
-  useEffect(() => {
-    if (!sseTaskId || step !== "proving") return;
-
-    if (sse.step === "completed" && sse.data) {
-      recordLayerTime();
-      setResult(sse.data);
-      setStep("submitting");
-      setPipelineLayer(2);
-      setSseTaskId(null);
-      sse.reset();
-    } else if (sse.status === "error" || sse.step === "failed") {
-      setError(sse.error || "Proof generation failed via SSE");
-      setStep("input");
-      setPipelineLayer(0);
-      setSseTaskId(null);
-      sse.reset();
-    } else if (sse.progress > 0) {
-      // Map progress percentage to pipeline layer
-      if (sse.progress >= 80) setPipelineLayer(3);
-      else if (sse.progress >= 40) setPipelineLayer(2);
-      else setPipelineLayer(1);
-    }
-  }, [sse.step, sse.progress, sse.status, sse.data, sse.error, sseTaskId, step]);
 
   const recordLayerTime = () => {
     const now = Date.now();
@@ -149,7 +122,6 @@ export default function VerifyPage() {
     setError(null);
     setPipelineLayer(1);
     setLayerTimes([]);
-    setSseTaskId(null);
     layerStartRef.current = Date.now();
 
     try {
@@ -158,46 +130,23 @@ export default function VerifyPage() {
       recordLayerTime();
       setPipelineLayer(2);
 
-      // Try SSE-based prover service first, fall back to direct API
-      let useSSEPath = false;
-      try {
-        const taskRes = await fetch("/api/prove", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ ...weather, async: true }),
-        });
-        if (taskRes.ok) {
-          const taskData = await taskRes.json();
-          if (taskData.taskId) {
-            // Prover service returned a task ID, use SSE to track
-            setSseTaskId(taskData.taskId);
-            useSSEPath = true;
-            return; // SSE effect will handle the rest
-          }
-        }
-      } catch {
-        // SSE path not available, fall through to sync path
+      // Layer 2: ZKML Inference (synchronous API call)
+      const res = await fetch("/api/prove", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(weather),
+      });
+
+      if (!res.ok) {
+        const errData = await res.json();
+        throw new Error(errData.error || "Proof generation failed");
       }
 
-      if (!useSSEPath) {
-        // Layer 2: ZKML Inference (synchronous API call)
-        const res = await fetch("/api/prove", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(weather),
-        });
-
-        if (!res.ok) {
-          const errData = await res.json();
-          throw new Error(errData.error || "Proof generation failed");
-        }
-
-        const data = await res.json();
-        recordLayerTime();
-        setResult(data);
-        setStep("submitting");
-        setPipelineLayer(2);
-      }
+      const data = await res.json();
+      recordLayerTime();
+      setResult(data);
+      setStep("submitting");
+      setPipelineLayer(2);
     } catch (e: any) {
       setError(e.message);
       setStep("input");
@@ -207,7 +156,8 @@ export default function VerifyPage() {
 
   // Convert EZKL little-endian hex to big-endian BigInt (browser-safe, no Buffer)
   const leHexToBigInt = (leHex: string): bigint => {
-    const bytes = leHex.match(/.{2}/g) || [];
+    const clean = leHex.startsWith("0x") ? leHex.slice(2) : leHex;
+    const bytes = clean.match(/.{2}/g) || [];
     const beHex = bytes.reverse().join("");
     return BigInt("0x" + beHex);
   };
@@ -230,11 +180,10 @@ export default function VerifyPage() {
         {
           address: CONTRACTS.ZKClawGateway as `0x${string}`,
           abi: GATEWAY_ABI,
-          functionName: "submitVerifiedInference",
+          functionName: "submitOffchainVerified",
           args: [
-            result.hexProof as `0x${string}`,
             result.publicInstances.map((x) => leHexToBigInt(x)),
-            BigInt(0), // agentId
+            BigInt(agentId),
             BigInt(weather.stationId),
           ],
         },
@@ -267,8 +216,6 @@ export default function VerifyPage() {
     setTxHash(null);
     setPipelineLayer(0);
     setLayerTimes([]);
-    setSseTaskId(null);
-    sse.reset();
   };
 
   return (
@@ -411,26 +358,47 @@ export default function VerifyPage() {
               })}
             </div>
 
-            {/* Station ID */}
-            <div className="p-4 rounded-xl border border-border/60 bg-card/50 card-hover">
-              <div className="flex items-center gap-2 mb-3">
-                <Radio className="w-4 h-4 text-primary/70" />
-                <label className="text-sm font-medium text-muted-foreground">Station ID</label>
+            {/* Station ID + Agent ID */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl border border-border/60 bg-card/50 card-hover">
+                <div className="flex items-center gap-2 mb-3">
+                  <Radio className="w-4 h-4 text-primary/70" />
+                  <label className="text-sm font-medium text-muted-foreground">Station ID</label>
+                </div>
+                <input
+                  type="number"
+                  value={weather.stationId}
+                  onChange={(e) =>
+                    setWeather({ ...weather, stationId: parseInt(e.target.value) || 1001 })
+                  }
+                  className="
+                    w-full px-3 py-2.5 rounded-lg
+                    border border-border/50 bg-background/80
+                    text-foreground font-mono text-lg
+                    focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40
+                    transition-all duration-200
+                  "
+                />
               </div>
-              <input
-                type="number"
-                value={weather.stationId}
-                onChange={(e) =>
-                  setWeather({ ...weather, stationId: parseInt(e.target.value) || 1001 })
-                }
-                className="
-                  w-full px-3 py-2.5 rounded-lg
-                  border border-border/50 bg-background/80
-                  text-foreground font-mono text-lg
-                  focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40
-                  transition-all duration-200
-                "
-              />
+              <div className="p-4 rounded-xl border border-border/60 bg-card/50 card-hover">
+                <div className="flex items-center gap-2 mb-3">
+                  <Bot className="w-4 h-4 text-primary/70" />
+                  <label className="text-sm font-medium text-muted-foreground">Agent ID (NFA)</label>
+                </div>
+                <input
+                  type="number"
+                  value={agentId}
+                  onChange={(e) => setAgentId(parseInt(e.target.value) || 0)}
+                  min={0}
+                  className="
+                    w-full px-3 py-2.5 rounded-lg
+                    border border-border/50 bg-background/80
+                    text-foreground font-mono text-lg
+                    focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40
+                    transition-all duration-200
+                  "
+                />
+              </div>
             </div>
 
             {/* Generate Button */}
@@ -632,7 +600,7 @@ export default function VerifyPage() {
             {isConnected ? (
               <button
                 onClick={handleSubmitOnChain}
-                disabled={isWriting}
+                disabled={isWriting || isConfirming}
                 className="
                   w-full py-3.5 rounded-xl font-semibold text-sm
                   bg-primary text-white cursor-pointer
@@ -642,8 +610,9 @@ export default function VerifyPage() {
                   disabled:opacity-40 disabled:cursor-not-allowed
                 "
               >
-                <Send className="w-4 h-4" />
-                {isWriting ? "Signing Transaction..." : "Submit to ZKClawGateway"}
+                {(isWriting || isConfirming) && <Loader2 className="w-4 h-4 animate-spin" />}
+                {!isWriting && !isConfirming && <Send className="w-4 h-4" />}
+                {isWriting ? "Signing Transaction..." : isConfirming ? "Confirming..." : "Submit to ZKClawGateway"}
               </button>
             ) : (
               <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 text-center">

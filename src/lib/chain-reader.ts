@@ -25,7 +25,7 @@ export async function fetchAgents() {
         publicClient.readContract({
           address: CONTRACTS.NFA as `0x${string}`,
           abi: NFA_ABI,
-          functionName: "getMetadata",
+          functionName: "getAgentMetadata",
           args: [BigInt(i)],
         }),
         publicClient.readContract({

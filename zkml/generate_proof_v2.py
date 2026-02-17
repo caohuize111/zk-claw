@@ -8,15 +8,19 @@ import json
 import os
 import asyncio
 import shutil
+import sys
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 BASE = SCRIPT_DIR
 ARTIFACTS = os.path.join(BASE, "artifacts_v2")
 
-# Clean start
-if os.path.exists(ARTIFACTS):
-    shutil.rmtree(ARTIFACTS)
-os.makedirs(ARTIFACTS)
+# Clean start (skip with --no-clean to preserve existing artifacts)
+if "--no-clean" not in sys.argv:
+    if os.path.exists(ARTIFACTS):
+        shutil.rmtree(ARTIFACTS)
+    os.makedirs(ARTIFACTS, exist_ok=True)
+else:
+    os.makedirs(ARTIFACTS, exist_ok=True)
 
 MODEL = os.path.join(BASE, "model_v2.onnx")
 INPUT = os.path.join(BASE, "input_v2.json")

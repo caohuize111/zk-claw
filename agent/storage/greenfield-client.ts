@@ -27,11 +27,16 @@ export class GreenfieldClient {
     const objectName = `proof-${recordIndex}-${Date.now()}.json`;
 
     try {
+      /**
+       * Greenfield Storage Client (Hackathon Placeholder)
+       *
+       * In production, this would upload proof data to BNB Greenfield
+       * decentralized storage using @bnb-chain/greenfield-js-sdk.
+       * For the hackathon demo, returns a placeholder URI.
+       * The on-chain anchorToGreenField() records this URI for audit trail.
+       */
       console.warn("[GREENFIELD] Upload not implemented -- returning placeholder URI");
       console.log(`[GREENFIELD] Would upload ${objectName} to gnfd://${this.bucketName}/${objectName} (${jsonStr.length} bytes)`);
-
-      // TODO: Implement actual Greenfield upload
-      // const txHash = await this.client.object.createObject(...)
 
       return { uri: `placeholder://${contentHash}`, contentHash };
     } catch (err: any) {

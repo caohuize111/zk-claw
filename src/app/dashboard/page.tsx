@@ -163,7 +163,7 @@ export default function DashboardPage() {
               className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all duration-200"
             >
               <Plus className="w-4 h-4" />
-              Mint Agent
+              Manage / Mint
             </Link>
             <div className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-border bg-card text-xs text-muted-foreground">
               <span className="relative flex h-2 w-2">
@@ -273,7 +273,7 @@ export default function DashboardPage() {
                         </div>
                         <div className="text-right flex-shrink-0 ml-4">
                           <div className="text-2xl font-bold font-mono text-primary leading-none">
-                            {agent.reputationScore}
+                            {(agent.reputationScore / 100).toFixed(1)}%
                           </div>
                           <div className="text-[10px] text-muted-foreground uppercase tracking-wider mt-0.5">
                             reputation

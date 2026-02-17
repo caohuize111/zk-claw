@@ -186,7 +186,10 @@ async function handleRemoteProve(
   // Submit task to prover service
   const submitRes = await fetch(`${PROVER_SERVICE_URL}/prove`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: {
+      "Content-Type": "application/json",
+      "X-Api-Key": process.env.PROVER_API_KEY || "dev-key-change-me",
+    },
     body: JSON.stringify(input),
   });
 

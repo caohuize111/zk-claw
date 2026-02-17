@@ -258,15 +258,20 @@ describe("ZK-Claw", () => {
       );
     });
 
-    it("should allow admin transfer", async () => {
-      // Transfer to user, then back to admin
+    it("should allow admin transfer (two-step)", async () => {
+      // Two-step: transferAdmin sets pendingAdmin, acceptAdmin completes
       await depinOracle.transferAdmin(user.address);
+      assert.equal(await depinOracle.admin(), admin.address);
+      assert.equal(await depinOracle.pendingAdmin(), user.address);
+      // User accepts
+      await depinOracle.connect(user).acceptAdmin();
       assert.equal(await depinOracle.admin(), user.address);
       // user is now admin, can register
       await depinOracle.connect(user).registerStation(7777, stationSigner.address);
       assert.equal(await depinOracle.registeredStations(7777), true);
       // Transfer back
       await depinOracle.connect(user).transferAdmin(admin.address);
+      await depinOracle.acceptAdmin();
     });
   });
 

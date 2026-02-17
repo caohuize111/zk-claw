@@ -163,7 +163,7 @@ export const NFA_ABI = [
   },
   {
     inputs: [{ name: "tokenId", type: "uint256" }],
-    name: "getMetadata",
+    name: "getAgentMetadata",
     outputs: [
       {
         components: [

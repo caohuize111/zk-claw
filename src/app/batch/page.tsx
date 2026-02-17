@@ -66,7 +66,7 @@ export default function BatchPage() {
 
   // Write
   const { writeContract: submitBatch, data: submitTxHash, isPending: isSubmitting } = useWriteContract();
-  useWaitForTransactionReceipt({ hash: submitTxHash });
+  const { isLoading: isConfirmingBatch } = useWaitForTransactionReceipt({ hash: submitTxHash });
 
   const parseBatchInput = (): BatchEntry[] | null => {
     try {
@@ -86,9 +86,8 @@ export default function BatchPage() {
   const handleVerify = async () => {
     const entries = parseBatchInput();
     if (!entries) return;
-    setStatusMessage(null);
+    setStatusMessage("Preview Mode -- results are simulated. Deploy BatchVerifier to verify on-chain.");
 
-    // TODO: call staticCall on deployed BatchVerifier.verifyBatch
     const results = entries.map(() => true);
     setVerifyResults(results);
   };
@@ -191,11 +190,11 @@ export default function BatchPage() {
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isSubmitting || !isConnected}
+            disabled={isSubmitting || isConfirmingBatch || !isConnected}
             className="py-3 rounded-xl font-semibold text-sm bg-primary text-white cursor-pointer hover:bg-primary/90 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-            {isSubmitting ? "Submitting..." : "Submit Batch"}
+            {(isSubmitting || isConfirmingBatch) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+            {isSubmitting ? "Submitting..." : isConfirmingBatch ? "Confirming..." : "Submit Batch"}
           </button>
         </div>
 

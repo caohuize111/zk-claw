@@ -97,7 +97,7 @@ contract NFA is ERC721Enumerable, ReentrancyGuard, Pausable, Ownable, IBAP578 {
         nonReentrant
         returns (uint256)
     {
-        require(balanceOf(msg.sender) < MAX_AGENTS_PER_ADDRESS, "Max agents per address reached");
+        require(mintCount[msg.sender] < MAX_AGENTS_PER_ADDRESS, "Max agents per address reached");
         require(bytes(metadata.name).length > 0, "Name required");
 
         uint256 tokenId = _nextTokenId++;
@@ -242,6 +242,8 @@ contract NFA is ERC721Enumerable, ReentrancyGuard, Pausable, Ownable, IBAP578 {
     // ═══════════════════════════════════════════════════════════════
 
     /// @notice Increment reputation after a verified ZK inference (logic contract or gateway)
+    /// @dev Increments both totalPredictions and correctPredictions, since a verified
+    ///      ZK inference is by definition a correct prediction.
     function incrementReputation(uint256 tokenId) external {
         require(
             msg.sender == _logicAddresses[tokenId] || msg.sender == gatewayAddress,
@@ -249,6 +251,7 @@ contract NFA is ERC721Enumerable, ReentrancyGuard, Pausable, Ownable, IBAP578 {
         );
         PredictionProfile storage p = _profiles[tokenId];
         p.totalPredictions += 1;
+        p.correctPredictions += 1;
         // Update score: basis points = (correct * 10000) / total
         if (p.totalPredictions > 0) {
             p.reputationScore = (p.correctPredictions * 10000) / p.totalPredictions;

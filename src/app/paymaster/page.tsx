@@ -59,10 +59,10 @@ export default function PaymasterPage() {
   const { sendTransaction, data: fundTxHash, isPending: isFunding } = useSendTransaction();
 
   // Wait for receipts
-  useWaitForTransactionReceipt({ hash: approveTxHash });
-  useWaitForTransactionReceipt({ hash: revokeTxHash });
-  useWaitForTransactionReceipt({ hash: withdrawTxHash });
-  useWaitForTransactionReceipt({ hash: fundTxHash });
+  const { isLoading: isConfirmingApprove } = useWaitForTransactionReceipt({ hash: approveTxHash });
+  const { isLoading: isConfirmingRevoke } = useWaitForTransactionReceipt({ hash: revokeTxHash });
+  const { isLoading: isConfirmingWithdraw } = useWaitForTransactionReceipt({ hash: withdrawTxHash });
+  const { isLoading: isConfirmingFund } = useWaitForTransactionReceipt({ hash: fundTxHash });
 
   const handleApprove = () => {
     if (!approveAddr) return;
@@ -170,11 +170,11 @@ export default function PaymasterPage() {
             />
             <button
               onClick={handleApprove}
-              disabled={isApproving || !approveAddr || !isConnected}
+              disabled={isApproving || isConfirmingApprove || !approveAddr || !isConnected}
               className="w-full py-2.5 rounded-lg font-semibold text-sm bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 cursor-pointer hover:bg-emerald-500/30 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isApproving ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
-              {isApproving ? "Approving..." : "Approve"}
+              {(isApproving || isConfirmingApprove) ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserCheck className="w-4 h-4" />}
+              {isApproving ? "Approving..." : isConfirmingApprove ? "Confirming..." : "Approve"}
             </button>
           </div>
 
@@ -193,11 +193,11 @@ export default function PaymasterPage() {
             />
             <button
               onClick={handleRevoke}
-              disabled={isRevoking || !revokeAddr || !isConnected}
+              disabled={isRevoking || isConfirmingRevoke || !revokeAddr || !isConnected}
               className="w-full py-2.5 rounded-lg font-semibold text-sm bg-destructive/20 text-destructive border border-destructive/30 cursor-pointer hover:bg-destructive/30 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isRevoking ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserX className="w-4 h-4" />}
-              {isRevoking ? "Revoking..." : "Revoke"}
+              {(isRevoking || isConfirmingRevoke) ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserX className="w-4 h-4" />}
+              {isRevoking ? "Revoking..." : isConfirmingRevoke ? "Confirming..." : "Revoke"}
             </button>
           </div>
 
@@ -219,11 +219,11 @@ export default function PaymasterPage() {
             </div>
             <button
               onClick={handleFund}
-              disabled={isFunding || !fundAmount || !isConnected}
+              disabled={isFunding || isConfirmingFund || !fundAmount || !isConnected}
               className="w-full py-2.5 rounded-lg font-semibold text-sm bg-primary text-white cursor-pointer hover:bg-primary/90 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isFunding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              {isFunding ? "Sending..." : "Send BNB"}
+              {(isFunding || isConfirmingFund) ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {isFunding ? "Sending..." : isConfirmingFund ? "Confirming..." : "Send BNB"}
             </button>
           </div>
 
@@ -245,11 +245,11 @@ export default function PaymasterPage() {
             </div>
             <button
               onClick={handleWithdraw}
-              disabled={isWithdrawing || !withdrawAmount || !isConnected}
+              disabled={isWithdrawing || isConfirmingWithdraw || !withdrawAmount || !isConnected}
               className="w-full py-2.5 rounded-lg font-semibold text-sm bg-amber-500/20 text-amber-400 border border-amber-500/30 cursor-pointer hover:bg-amber-500/30 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
             >
-              {isWithdrawing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowDownToLine className="w-4 h-4" />}
-              {isWithdrawing ? "Withdrawing..." : "Withdraw"}
+              {(isWithdrawing || isConfirmingWithdraw) ? <Loader2 className="w-4 h-4 animate-spin" /> : <ArrowDownToLine className="w-4 h-4" />}
+              {isWithdrawing ? "Withdrawing..." : isConfirmingWithdraw ? "Confirming..." : "Withdraw"}
             </button>
           </div>
         </div>

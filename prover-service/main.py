@@ -257,6 +257,10 @@ async def _run_prove(task_id: str, req: ProveRequest):
                 witness_path, compiled_path, pk_path,
                 proof_path=proof_path, srs_path=srs_path,
             )
+            if hasattr(res, "__await__"):
+                res = await res
+            elif asyncio.isfuture(res):
+                res = await res
             if not res:
                 raise RuntimeError("EZKL prove returned False")
 
@@ -267,6 +271,10 @@ async def _run_prove(task_id: str, req: ProveRequest):
                 proof_path, settings_path, vk_path,
                 srs_path=srs_path, reduced_srs=False,
             )
+            if hasattr(res, "__await__"):
+                res = await res
+            elif asyncio.isfuture(res):
+                res = await res
             if not res:
                 raise RuntimeError("EZKL verify returned False")
 

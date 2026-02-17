@@ -123,11 +123,14 @@ contract MultiStationConsensus {
         readings.rains = new uint256[](n);
 
         for (uint256 i = 0; i < n; i++) {
-            DePINOracle.WeatherData memory d = oracle.getLatestData(stationIds[i]);
-            readings.temps[i] = d.temperature;
-            readings.humids[i] = d.humidity;
-            readings.winds[i] = d.windSpeed;
-            readings.rains[i] = d.rainfall;
+            try oracle.getLatestData(stationIds[i]) returns (DePINOracle.WeatherData memory d) {
+                readings.temps[i] = d.temperature;
+                readings.humids[i] = d.humidity;
+                readings.winds[i] = d.windSpeed;
+                readings.rains[i] = d.rainfall;
+            } catch {
+                // Skip unregistered or failing stations; leave readings as zero defaults
+            }
         }
     }
 

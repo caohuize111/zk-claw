@@ -30,6 +30,7 @@ contract DePINOracle {
     mapping(uint256 => uint256) public stationNonces;     // replay protection
     uint256[] public stationIds;
     address public admin;
+    address public pendingAdmin;
 
     event StationRegistered(uint256 indexed stationId, address indexed stationAddress);
     event WeatherDataSubmitted(
@@ -61,11 +62,18 @@ contract DePINOracle {
         emit StationRegistered(stationId, stationAddress);
     }
 
-    /// @notice Transfer admin role
+    /// @notice Initiate two-step admin transfer by setting pending admin
     function transferAdmin(address newAdmin) external onlyAdmin {
         require(newAdmin != address(0), "Invalid admin address");
-        emit AdminTransferred(admin, newAdmin);
-        admin = newAdmin;
+        pendingAdmin = newAdmin;
+    }
+
+    /// @notice Accept admin role (must be called by pending admin)
+    function acceptAdmin() external {
+        require(msg.sender == pendingAdmin, "Not pending admin");
+        emit AdminTransferred(admin, pendingAdmin);
+        admin = pendingAdmin;
+        pendingAdmin = address(0);
     }
 
     /// @notice Submit weather data with hardware signature verification

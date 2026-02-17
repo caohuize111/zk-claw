@@ -156,11 +156,12 @@ async function main() {
   await tx.wait();
   console.log("  Station 1001 registered, hardware key:", deployer.address);
 
-  // Submit hardware-signed weather data
+  // Submit hardware-signed weather data (read nonce from contract for safety)
   console.log("[3/8] Submitting hardware-signed weather data...");
+  const currentNonce = await depinOracle.stationNonces(1001);
   const dataHash = ethers.solidityPackedKeccak256(
     ["uint256", "int256", "uint256", "uint256", "uint256", "uint256"],
-    [1001, -800, 9800, 12000, 25000, 0]  // nonce=0 for first submission
+    [1001, -800, 9800, 12000, 25000, currentNonce]
   );
   const signature = await deployer.signMessage(ethers.getBytes(dataHash));
   tx = await depinOracle.submitWeatherData(1001, -800, 9800, 12000, 25000, signature);
