@@ -28,7 +28,9 @@ contract MockDePINOracle {
     mapping(uint256 => WeatherData) public latestData;
     mapping(uint256 => bool) public registeredStations;
     mapping(uint256 => address) public stationAddresses;  // stationId => hardware public key
+    mapping(uint256 => uint256) public stationNonces;     // replay protection
     uint256[] public stationIds;
+    address public admin;
 
     event StationRegistered(uint256 indexed stationId, address indexed stationAddress);
     event WeatherDataSubmitted(
@@ -37,17 +39,34 @@ contract MockDePINOracle {
         uint256 timestamp,
         bool signatureVerified
     );
+    event AdminTransferred(address indexed oldAdmin, address indexed newAdmin);
 
-    /// @notice Register a weather station with its hardware public key
+    modifier onlyAdmin() {
+        require(msg.sender == admin, "Only admin");
+        _;
+    }
+
+    constructor() {
+        admin = msg.sender;
+    }
+
+    /// @notice Register a weather station with its hardware public key (admin only)
     /// @param stationId Unique station identifier
     /// @param stationAddress The public key / address bound to this station's TEE
-    function registerStation(uint256 stationId, address stationAddress) external {
+    function registerStation(uint256 stationId, address stationAddress) external onlyAdmin {
         require(!registeredStations[stationId], "Station already registered");
         require(stationAddress != address(0), "Invalid station address");
         registeredStations[stationId] = true;
         stationAddresses[stationId] = stationAddress;
         stationIds.push(stationId);
         emit StationRegistered(stationId, stationAddress);
+    }
+
+    /// @notice Transfer admin role
+    function transferAdmin(address newAdmin) external onlyAdmin {
+        require(newAdmin != address(0), "Invalid admin address");
+        emit AdminTransferred(admin, newAdmin);
+        admin = newAdmin;
     }
 
     /// @notice Submit weather data with hardware signature verification
@@ -67,10 +86,11 @@ contract MockDePINOracle {
     ) external {
         require(registeredStations[stationId], "Station not registered");
 
-        // Compute deterministic data hash from sensor readings
+        // Compute deterministic data hash from sensor readings (includes nonce for replay protection)
         bytes32 dataHash = keccak256(abi.encodePacked(
-            stationId, temperature, humidity, windSpeed, rainfall
+            stationId, temperature, humidity, windSpeed, rainfall, stationNonces[stationId]
         ));
+        stationNonces[stationId]++;
 
         // Verify hardware signature via ecrecover
         bytes32 ethSignedHash = dataHash.toEthSignedMessageHash();

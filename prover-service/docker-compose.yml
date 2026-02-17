@@ -1,0 +1,65 @@
+version: "3.8"
+
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  prover:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - ../zkml:/app/zkml
+    environment:
+      - ZKML_DIR=/app/zkml
+      - MAX_CONCURRENT_TASKS=4
+      - USE_CELERY=true
+      - REDIS_URL=redis://redis:6379/0
+      - PROVER_API_KEY=${PROVER_API_KEY:-dev-key-change-me}
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python3", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  celery-worker:
+    build: .
+    command: celery -A worker worker --loglevel=info --concurrency=2
+    volumes:
+      - ../zkml:/app/zkml
+    environment:
+      - ZKML_DIR=/app/zkml
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      redis:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 2G
+    restart: unless-stopped
+
+volumes:
+  redis-data:

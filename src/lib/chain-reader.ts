@@ -1,12 +1,12 @@
 import { createPublicClient, http } from "viem";
 import { bscTestnet } from "viem/chains";
 import { CONTRACTS } from "./contract-addresses";
-import { GATEWAY_ABI, NFA_ABI, DEPIN_ORACLE_ABI } from "./contracts";
+import { GATEWAY_ABI, NFA_ABI } from "./contracts";
 
-// Server-side viem client for reading chain data
+// Server-side viem client for reading chain data (5s timeout to avoid blocking SSR)
 export const publicClient = createPublicClient({
   chain: bscTestnet,
-  transport: http("https://data-seed-prebsc-1-s1.bnbchain.org:8545/"),
+  transport: http("https://bsc-testnet-rpc.publicnode.com", { timeout: 5_000 }),
 });
 
 export async function fetchAgents() {

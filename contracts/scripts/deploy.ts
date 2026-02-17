@@ -26,39 +26,47 @@ async function main() {
   console.log("\n--- Phase 1: Deploy Contracts ---\n");
 
   // 1. Halo2Verifier (EZKL-generated, real ZK proof verification)
-  console.log("[1/5] Deploying Halo2Verifier (EZKL, 13 KB)...");
+  console.log("[1/7] Deploying Halo2Verifier (EZKL, 13 KB)...");
   const Halo2Verifier = await ethers.getContractFactory("Halo2Verifier");
   const halo2Verifier = await Halo2Verifier.deploy();
   await halo2Verifier.waitForDeployment();
   const verifierAddr = await halo2Verifier.getAddress();
   console.log("  Halo2Verifier:", verifierAddr);
 
-  // 2. MockNFA (BAP-578)
-  console.log("[2/5] Deploying MockNFA (BAP-578)...");
-  const MockNFA = await ethers.getContractFactory("MockNFA");
-  const nfa = await MockNFA.deploy();
+  // 2. NFA (BAP-578 full implementation)
+  console.log("[2/7] Deploying NFA (BAP-578)...");
+  const NFA = await ethers.getContractFactory("NFA");
+  const nfa = await NFA.deploy();
   await nfa.waitForDeployment();
   const nfaAddr = await nfa.getAddress();
-  console.log("  MockNFA:", nfaAddr);
+  console.log("  NFA:", nfaAddr);
 
-  // 3. MockValidationRegistry (ERC-8004)
-  console.log("[3/5] Deploying MockValidationRegistry (ERC-8004)...");
-  const MockValidationRegistry = await ethers.getContractFactory("MockValidationRegistry");
-  const validationRegistry = await MockValidationRegistry.deploy();
+  // 3. ValidationRegistry (ERC-8004)
+  console.log("[3/7] Deploying ValidationRegistry (ERC-8004)...");
+  const ValidationRegistry = await ethers.getContractFactory("ValidationRegistry");
+  const validationRegistry = await ValidationRegistry.deploy(nfaAddr);
   await validationRegistry.waitForDeployment();
   const validationAddr = await validationRegistry.getAddress();
-  console.log("  MockValidationRegistry:", validationAddr);
+  console.log("  ValidationRegistry:", validationAddr);
 
-  // 4. MockDePINOracle (Hardware Signature Verification)
-  console.log("[4/5] Deploying MockDePINOracle...");
+  // 4. ReputationRegistry (ERC-8004)
+  console.log("[4/7] Deploying ReputationRegistry (ERC-8004)...");
+  const ReputationRegistry = await ethers.getContractFactory("ReputationRegistry");
+  const reputationRegistry = await ReputationRegistry.deploy(nfaAddr);
+  await reputationRegistry.waitForDeployment();
+  const reputationAddr = await reputationRegistry.getAddress();
+  console.log("  ReputationRegistry:", reputationAddr);
+
+  // 5. MockDePINOracle (Hardware Signature Verification)
+  console.log("[5/7] Deploying MockDePINOracle...");
   const MockDePINOracle = await ethers.getContractFactory("MockDePINOracle");
   const depinOracle = await MockDePINOracle.deploy();
   await depinOracle.waitForDeployment();
   const oracleAddr = await depinOracle.getAddress();
   console.log("  MockDePINOracle:", oracleAddr);
 
-  // 5. ZKClawGateway
-  console.log("[5/5] Deploying ZKClawGateway...");
+  // 6. ZKClawGateway
+  console.log("[6/7] Deploying ZKClawGateway...");
   const ZKClawGateway = await ethers.getContractFactory("ZKClawGateway");
   const gateway = await ZKClawGateway.deploy(verifierAddr, nfaAddr, validationAddr, oracleAddr);
   await gateway.waitForDeployment();
@@ -70,17 +78,17 @@ async function main() {
   // ============================================
   console.log("\n--- Phase 2: Initialize Demo State ---\n");
 
-  // Register weather station with deployer as hardware key (demo)
+  // Register weather station
   console.log("[1/6] Registering DePIN weather station (stationId=1001)...");
   let tx = await depinOracle.registerStation(1001, deployer.address);
   await tx.wait();
   console.log("  Station 1001 registered, hardware key:", deployer.address);
 
-  // Submit hardware-signed weather data (extreme conditions)
+  // Submit hardware-signed weather data
   console.log("[2/6] Submitting hardware-signed weather data...");
   const dataHash = ethers.solidityPackedKeccak256(
-    ["uint256", "int256", "uint256", "uint256", "uint256"],
-    [1001, -800, 9800, 12000, 25000]
+    ["uint256", "int256", "uint256", "uint256", "uint256", "uint256"],
+    [1001, -800, 9800, 12000, 25000, 0]  // nonce=0 for first submission
   );
   const signature = await deployer.signMessage(ethers.getBytes(dataHash));
   tx = await depinOracle.submitWeatherData(1001, -800, 9800, 12000, 25000, signature);
@@ -88,34 +96,42 @@ async function main() {
   const isAuth = await depinOracle.isDataAuthentic(1001);
   console.log("  Weather data submitted, signature verified:", isAuth);
 
-  // Mint demo NFA agent
+  // Mint demo NFA agent (BAP-578 full metadata)
   console.log("[3/6] Minting NFA agent (WeatherGuard-01)...");
   tx = await nfa.mint({
     name: "WeatherGuard-01",
     persona: "DePIN Insurance Analyst -- Verifiable AI Agent",
+    voiceHash: ethers.keccak256(ethers.toUtf8Bytes("weatherguard-voice-v1")),
+    animationURI: "",
     vaultURI: "gnfd://zk-claw-bucket/agent-weatherguard-01",
-    vaultHash: ethers.keccak256(ethers.toUtf8Bytes("weatherguard-vault-v1"))
+    vaultHash: ethers.keccak256(ethers.toUtf8Bytes("weatherguard-vault-v1")),
+    avatarId: 1,
   });
   await tx.wait();
   console.log("  Agent minted: tokenId=0");
 
+  // Set gateway on NFA
+  console.log("[4/7] Setting NFA gateway...");
+  await nfa.setGateway(gatewayAddr);
+  console.log("  NFA gateway set to:", gatewayAddr);
+
   // Bind gateway as logic contract
-  console.log("[4/6] Binding ZKClawGateway as agent logic...");
+  console.log("[5/7] Binding ZKClawGateway as agent logic...");
   tx = await nfa.setLogicAddress(0, gatewayAddr);
   await tx.wait();
   console.log("  Gateway bound to agent 0");
 
   // Submit a demo off-chain verified inference
-  console.log("[5/6] Submitting demo inference (claim triggered)...");
-  const proofHash = ethers.keccak256(ethers.toUtf8Bytes("demo-proof-extreme-weather"));
+  console.log("[6/7] Submitting demo inference (claim triggered)...");
+  // instances where index[5] > index[4] => decision = CLAIM
   const publicInstances = [100n, 200n, 300n, 400n, 500n, 600n];
-  tx = await gateway.submitOffchainVerified(proofHash, publicInstances, 0, 1001, 1);
+  tx = await gateway.submitOffchainVerified(publicInstances, 0, 1001);
   await tx.wait();
   const profile = await nfa.getProfile(0);
   console.log("  Inference submitted, reputation:", profile.reputationScore.toString());
 
   // Anchor to Greenfield
-  console.log("[6/6] Anchoring proof to Greenfield...");
+  console.log("[7/7] Anchoring proof to Greenfield...");
   const contentHash = ethers.keccak256(ethers.toUtf8Bytes(
     JSON.stringify({
       proof: "demo-proof-extreme-weather",
@@ -141,8 +157,9 @@ async function main() {
   console.log("=".repeat(60));
   console.log(`  Network:                ${hre.network.name}`);
   console.log(`  Halo2Verifier:          ${verifierAddr}`);
-  console.log(`  MockNFA (BAP-578):      ${nfaAddr}`);
-  console.log(`  MockValidationRegistry: ${validationAddr}`);
+  console.log(`  NFA (BAP-578):          ${nfaAddr}`);
+  console.log(`  ValidationRegistry:     ${validationAddr}`);
+  console.log(`  ReputationRegistry:     ${reputationAddr}`);
   console.log(`  MockDePINOracle:        ${oracleAddr}`);
   console.log(`  ZKClawGateway:          ${gatewayAddr}`);
   console.log("---");
@@ -156,8 +173,9 @@ async function main() {
   // Write addresses to file for frontend
   const addresses = {
     Halo2Verifier: verifierAddr,
-    MockNFA: nfaAddr,
-    MockValidationRegistry: validationAddr,
+    NFA: nfaAddr,
+    ValidationRegistry: validationAddr,
+    ReputationRegistry: reputationAddr,
     MockDePINOracle: oracleAddr,
     ZKClawGateway: gatewayAddr,
     network: hre.network.name,
@@ -178,13 +196,16 @@ async function main() {
 // Network: ${hre.network.name} (chainId: ${addresses.chainId})
 export const CONTRACTS = {
   Halo2Verifier: "${verifierAddr}",
-  MockNFA: "${nfaAddr}",
-  MockValidationRegistry: "${validationAddr}",
+  NFA: "${nfaAddr}",
+  ValidationRegistry: "${validationAddr}",
+  ReputationRegistry: "${reputationAddr}",
   MockDePINOracle: "${oracleAddr}",
   ZKClawGateway: "${gatewayAddr}",
 } as const;
+
+export const IS_DEPLOYED = true;
 `;
-  const configPath = "../src/lib/deployed-contracts.ts";
+  const configPath = "../src/lib/contract-addresses.ts";
   fs.writeFileSync(configPath, frontendConfig);
   console.log(`Frontend config saved to ${configPath}`);
 }

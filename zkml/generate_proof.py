@@ -8,7 +8,8 @@ import os
 import asyncio
 import shutil
 
-BASE = "/Users/xiaobai/Desktop/zk-claw/zkml"
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BASE = SCRIPT_DIR
 ARTIFACTS = os.path.join(BASE, "artifacts")
 
 # Clean start
@@ -25,7 +26,7 @@ PK = os.path.join(ARTIFACTS, "pk.key")
 VK = os.path.join(ARTIFACTS, "vk.key")
 WITNESS = os.path.join(ARTIFACTS, "witness.json")
 PROOF = os.path.join(ARTIFACTS, "proof.json")
-VERIFIER_SOL = "/Users/xiaobai/Desktop/zk-claw/contracts/contracts/verifier/Halo2Verifier.sol"
+VERIFIER_SOL = os.path.join(SCRIPT_DIR, "..", "contracts", "contracts", "verifier", "Halo2Verifier.sol")
 
 
 async def main():
@@ -49,8 +50,17 @@ async def main():
     assert res, "calibrate_settings failed"
     with open(SETTINGS) as f:
         s = json.load(f)
-    logrows = s.get("run_args", {}).get("logrows", 15)
-    print(f"  OK (logrows={logrows})")
+    # Override logrows to 12 for optimized proving speed (~4x faster)
+    OVERRIDE_LOGROWS = int(os.environ.get("EZKL_LOGROWS", "12"))
+    original_logrows = s.get("run_args", {}).get("logrows", 15)
+    if OVERRIDE_LOGROWS != original_logrows:
+        s["run_args"]["logrows"] = OVERRIDE_LOGROWS
+        with open(SETTINGS, "w") as f:
+            json.dump(s, f)
+        print(f"  OK (calibrated logrows={original_logrows}, overridden to {OVERRIDE_LOGROWS})")
+    else:
+        print(f"  OK (logrows={original_logrows})")
+    logrows = OVERRIDE_LOGROWS
 
     # Step 3: compile_circuit
     print("\n[3/8] compile_circuit...")

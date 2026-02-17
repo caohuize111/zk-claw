@@ -13,11 +13,9 @@ export const GATEWAY_ABI = [
   },
   {
     inputs: [
-      { name: "proofHash", type: "bytes32" },
       { name: "publicInstances", type: "uint256[]" },
       { name: "agentId", type: "uint256" },
       { name: "stationId", type: "uint256" },
-      { name: "decision", type: "uint8" },
     ],
     name: "submitOffchainVerified",
     outputs: [],
@@ -112,6 +110,20 @@ export const GATEWAY_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  {
+    inputs: [],
+    name: "acceptAdmin",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "pendingAdmin",
+    outputs: [{ type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 
 export const NFA_ABI = [
@@ -169,6 +181,170 @@ export const NFA_ABI = [
   {
     inputs: [],
     name: "totalAgents",
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+export const NFA_FULL_ABI = [
+  ...NFA_ABI,
+  {
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    name: "pauseAgent",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    name: "unpauseAgent",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    name: "terminateAgent",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    name: "fundAgent",
+    outputs: [],
+    stateMutability: "payable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "tokenId", type: "uint256" },
+      { name: "amount", type: "uint256" },
+    ],
+    name: "withdrawFromAgent",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    name: "getState",
+    outputs: [{ type: "uint8" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    name: "getAgentBalance",
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    name: "getTokenBoundAccount",
+    outputs: [{ type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "tokenId", type: "uint256" }],
+    name: "getAgentMetadata",
+    outputs: [
+      {
+        components: [
+          { name: "name", type: "string" },
+          { name: "persona", type: "string" },
+          { name: "vaultURI", type: "string" },
+          { name: "vaultHash", type: "bytes32" },
+        ],
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
+export const PAYMASTER_ABI = [
+  {
+    inputs: [{ name: "agent", type: "address" }],
+    name: "approveAgent",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "agent", type: "address" }],
+    name: "revokeAgent",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "balance",
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "totalSponsored",
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "", type: "address" }],
+    name: "approvedAgents",
+    outputs: [{ type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "amount", type: "uint256" }],
+    name: "withdraw",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+] as const;
+
+export const BATCH_VERIFIER_ABI = [
+  {
+    inputs: [
+      { name: "proofs", type: "bytes[]" },
+      { name: "instances", type: "uint256[][]" },
+    ],
+    name: "verifyBatch",
+    outputs: [{ type: "bool[]" }],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "proofs", type: "bytes[]" },
+      { name: "instances", type: "uint256[][]" },
+      { name: "agentIds", type: "uint256[]" },
+      { name: "stationIds", type: "uint256[]" },
+    ],
+    name: "submitBatch",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "totalBatchesProcessed",
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "totalProofsAggregated",
     outputs: [{ type: "uint256" }],
     stateMutability: "view",
     type: "function",

@@ -6,11 +6,14 @@ Features: temperature, humidity, wind_speed, rainfall (4 floats)
 Output: [prob_normal, prob_claim] (2 floats, softmax)
 """
 
+import os
 import numpy as np
 import json
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 # --- Generate synthetic DePIN weather training data ---
 np.random.seed(42)
@@ -86,7 +89,7 @@ print(f"Final accuracy: {acc.item()*100:.1f}%")
 # --- Export to ONNX ---
 model.eval()
 dummy_input = torch.randn(1, 4)
-onnx_path = "/Users/xiaobai/Desktop/zk-claw/zkml/model.onnx"
+onnx_path = os.path.join(SCRIPT_DIR, "model.onnx")
 torch.onnx.export(
     model,
     dummy_input,
@@ -104,7 +107,7 @@ norm_params = {
     "max": X_max.tolist(),
     "features": ["temperature", "humidity", "wind_speed", "rainfall"]
 }
-with open("/Users/xiaobai/Desktop/zk-claw/zkml/norm_params.json", "w") as f:
+with open(os.path.join(SCRIPT_DIR, "norm_params.json"), "w") as f:
     json.dump(norm_params, f, indent=2)
 
 # --- Generate sample inputs for EZKL ---
@@ -117,7 +120,7 @@ def normalize(raw):
 # Extreme weather: temp=-8, humidity=98, wind=120, rainfall=250
 extreme = normalize([-8.0, 98.0, 120.0, 250.0])
 sample_input = {"input_data": [extreme]}
-with open("/Users/xiaobai/Desktop/zk-claw/zkml/input.json", "w") as f:
+with open(os.path.join(SCRIPT_DIR, "input.json"), "w") as f:
     json.dump(sample_input, f, indent=2)
 
 with torch.no_grad():
@@ -128,7 +131,7 @@ print(f"Extreme weather prediction: {'CLAIM' if cls == 1 else 'NORMAL'} (logits:
 # Normal weather: temp=25, humidity=60, wind=15, rainfall=5
 normal = normalize([25.0, 60.0, 15.0, 5.0])
 normal_input = {"input_data": [normal]}
-with open("/Users/xiaobai/Desktop/zk-claw/zkml/input_normal.json", "w") as f:
+with open(os.path.join(SCRIPT_DIR, "input_normal.json"), "w") as f:
     json.dump(normal_input, f, indent=2)
 
 with torch.no_grad():

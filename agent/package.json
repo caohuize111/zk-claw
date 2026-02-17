@@ -1,0 +1,17 @@
+{
+  "name": "zk-claw-agent",
+  "version": "1.0.0",
+  "description": "ZK-Claw AI Agent Daemon",
+  "scripts": {
+    "demo": "npx tsx daemon.ts --demo",
+    "start": "npx tsx daemon.ts"
+  },
+  "dependencies": {
+    "ethers": "^6.9.0",
+    "dotenv": "^16.3.1",
+    "tsx": "^4.7.0",
+    "mqtt": "^5.3.0",
+    "@waku/sdk": "^0.0.28",
+    "@bnb-chain/greenfield-js-sdk": "^2.4.0"
+  }
+}

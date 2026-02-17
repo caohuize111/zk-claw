@@ -4,6 +4,10 @@ import { NavBar } from "@/components/NavBar";
 import { useParams } from "next/navigation";
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import { useReadContract } from "wagmi";
+import { formatEther } from "viem";
+import { CONTRACTS } from "@/lib/wagmi-config";
+import { NFA_FULL_ABI } from "@/lib/contracts";
 import {
   ArrowLeft,
   Shield,
@@ -17,6 +21,8 @@ import {
   XCircle,
   Fingerprint,
   ExternalLink,
+  Wallet,
+  Settings,
 } from "lucide-react";
 
 interface AgentInfo {
@@ -70,6 +76,27 @@ export default function AgentProfilePage() {
     agent && agent.totalPredictions > 0
       ? Math.round((agent.correctPredictions / agent.totalPredictions) * 100)
       : 0;
+
+  // TBA reads
+  const tokenId = BigInt(agentId);
+  const nfaAddr = CONTRACTS.MockNFA as `0x${string}`;
+
+  const { data: tbaAddress } = useReadContract({
+    address: nfaAddr,
+    abi: NFA_FULL_ABI,
+    functionName: "getTokenBoundAccount",
+    args: [tokenId],
+  });
+
+  const { data: agentBalance } = useReadContract({
+    address: nfaAddr,
+    abi: NFA_FULL_ABI,
+    functionName: "getAgentBalance",
+    args: [tokenId],
+  });
+
+  const tba = tbaAddress as `0x${string}` | undefined;
+  const isZeroTba = tba === "0x0000000000000000000000000000000000000000";
 
   /* ------------------------------------------------------------------ */
   /*  Loading State                                                      */
@@ -164,14 +191,23 @@ export default function AgentProfilePage() {
     <>
       <NavBar />
       <main className="max-w-4xl mx-auto px-4 py-8">
-        {/* ---- Back Link ---- */}
-        <Link
-          href="/dashboard"
-          className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors mb-8 group"
-        >
-          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
-          Back to Dashboard
-        </Link>
+        {/* ---- Navigation ---- */}
+        <div className="flex items-center gap-4 mb-8">
+          <Link
+            href="/dashboard"
+            className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors group"
+          >
+            <ArrowLeft className="w-4 h-4 group-hover:-translate-x-0.5 transition-transform" />
+            Back to Dashboard
+          </Link>
+          <Link
+            href={`/agent/${agentId}/manage`}
+            className="inline-flex items-center gap-2 text-sm text-primary/70 hover:text-primary transition-colors"
+          >
+            <Settings className="w-4 h-4" />
+            Manage Agent
+          </Link>
+        </div>
 
         {/* ---- Agent Header Card ---- */}
         <div className="rounded-xl bg-card border border-border p-6 mb-8 card-hover">
@@ -312,6 +348,41 @@ export default function AgentProfilePage() {
                 ? `${agent.vaultHash.slice(0, 22)}...`
                 : "0x0000000000000000000000"}
             </span>
+          </div>
+        </div>
+
+        {/* ---- Token Bound Account (ERC-6551) ---- */}
+        <div className="rounded-xl border border-border bg-card p-5 mb-8 card-hover">
+          <div className="flex items-center gap-2 mb-4">
+            <Wallet className="w-4 h-4 text-primary" />
+            <h2 className="text-base font-semibold">Token Bound Account (ERC-6551)</h2>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">TBA Address</div>
+              {tba && !isZeroTba ? (
+                <div className="flex items-center gap-2">
+                  <span className="font-mono text-sm text-foreground truncate">{tba}</span>
+                  <a
+                    href={`https://testnet.bscscan.com/address/${tba}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex-shrink-0 text-primary hover:text-primary/80 transition-colors"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              ) : (
+                <span className="text-sm text-muted-foreground">Not created</span>
+              )}
+            </div>
+            <div>
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Balance</div>
+              <div className="text-2xl font-bold font-mono text-primary">
+                {agentBalance !== undefined ? formatEther(agentBalance as bigint) : "--"}
+                <span className="text-sm text-muted-foreground ml-1">BNB</span>
+              </div>
+            </div>
           </div>
         </div>
 

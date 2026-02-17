@@ -1,305 +1,266 @@
 # ZK-Claw
 
-**Verifiable Intelligence Gateway for Autonomous AI Agents on BNB Chain**
+**Verifiable Intelligence Gateway for Sovereign AI Agents on BNB Chain**
 
-ZK-Claw makes AI agent decisions *unruggable*. Every inference is backed by a ZK-SNARK proof -- the agent's developer cannot tamper with the decision logic after deployment.
+ZK-Claw makes AI agent decisions trustless by fusing DePIN hardware signatures, zero-knowledge ML proofs, and on-chain dual verification into a single atomic transaction.
 
-The system chains together three trust layers:
-1. **DePIN hardware signatures** bind sensor readings to physical stations
-2. **ZKML proofs** (EZKL / Halo2) guarantee the ML model executed correctly without revealing weights
-3. **On-chain verification** records results, accumulates NFA reputation (BAP-578), and writes to ERC-8004 validation registry
+## The Problem
 
-Built for the **Good Vibes Only: OpenClaw Edition** hackathon (Builders track).
-
----
+AI agents managing on-chain assets are opaque black boxes. Users have no way to verify whether an agent's input data is genuine (it could be fabricated), whether its ML computation was honest (it could be manipulated), or whether its decisions are accountable (there is no audit trail). Without cryptographic guarantees at both the data layer and the computation layer, autonomous agents remain fundamentally untrustworthy for any high-stakes on-chain operation.
 
 ## Architecture
 
 ```
-  DePIN Weather Station          ZKML Prover (EZKL)          BNB Chain (BSC Testnet)
-  =====================          ==================          =======================
-
-  Marco Station #1001            PyTorch MLP (4->32->16->2)  ZKClawGateway
-  temp / humidity /              ONNX export                   |-- verify ZK proof
-  wind / rainfall                     |                        |-- check hardware sig
-       |                         Halo2 circuit compile         |-- record decision
-  ECDSA hardware sign                 |                        |-- update NFA reputation
-       |                         KZG commitment                |-- write ERC-8004 entry
-       v                              |                        |-- anchor to Greenfield
-  MockDePINOracle.sol            ZK-SNARK proof                     |
-  ecrecover on-chain                  |                        MockNFA (BAP-578)
-                                      v                        MockValidationRegistry
-                                 /api/prove                    (ERC-8004)
-                                 returns proof + decision
++---------------------+     +---------------------+     +---------------------+
+|  L1: DePIN Oracle   |---->|  L2: ZKML Prover    |---->|  L3: AI Agent       |
+|  Hardware Signing    |     |  EZKL + Halo2       |     |  NFA (BAP-578)      |
+|  ECDSA + Nonce       |     |  KZG Commitment     |     |  Lifecycle + Rep    |
++---------------------+     +---------------------+     +---------------------+
+                                                                |
+                                                                v
++---------------------+     +---------------------+
+|  L5: Frontend       |<----|  L4: Gateway         |
+|  Next.js 14         |     |  Dual Verification   |
+|  wagmi v2           |     |  ZK + DePIN Gate     |
++---------------------+     +---------------------+
 ```
 
-**Dual Trust Model:**
-- **Data layer:** Hardware sensor keys sign raw readings. `ecrecover` on-chain verifies the source is a genuine physical station -- blocks fake data injection.
-- **Inference layer:** EZKL compiles the PyTorch model into an arithmetic circuit and generates a Halo2 SNARK. The proof attests that the correct model ran on the signed data -- blocks weight tampering.
+## How It Works (Data Flow)
 
----
+1. **DePIN sensor signs data with hardware key** -- A registered weather station submits temperature, humidity, wind speed, and rainfall readings. The data is signed with the station's bound ECDSA key (simulating TEE/Secure Element). A per-station nonce prevents replay.
 
-## Deployed Contracts (BSC Testnet)
+2. **Agent detects anomaly, sends to ZKML prover** -- The AI agent reads the authenticated sensor data and prepares normalized inputs for the ML model.
 
-| Contract | Address | Purpose |
-|----------|---------|---------|
-| MockVerifier | `0x319729205CfBFd9CD1e8130Ed9D342542e310386` | ZK proof verification |
-| MockNFA | `0x9B83Bb788B4f96cA8c377EAFC5610502140214d1` | BAP-578 agent identity + reputation |
-| MockValidationRegistry | `0x7f54dA182693394Ff0Bf77479e6d7b9003cf8f25` | ERC-8004 trust history |
-| MockDePINOracle | `0xed7B5A8fc0249BdfB70363C083Ea828976eDFe89` | Hardware-signed sensor data |
-| ZKClawGateway | `0xae765e473f5549607093B1685e3199Bd6f0AD058` | Core orchestrator |
+3. **EZKL generates Halo2 proof** -- The prover runs the 3-layer MLP through the EZKL circuit (`gen_witness` -> `prove`), producing a ZK-SNARK that proves honest inference without revealing model weights.
 
-All contracts verified on [BSCScan Testnet](https://testnet.bscscan.com/).
+4. **Agent submits (proof, public_instances, station_id) to Gateway** -- The agent calls `submitVerifiedInference` with the full proof bytes and EZKL public instances.
 
----
+5. **Gateway dual-verifies: ZK proof valid AND hardware signature valid** -- The Gateway calls the on-chain Halo2Verifier to check the ZK proof, then queries the DePIN Oracle to verify hardware signature authenticity, data freshness (30-minute window), and normalization cross-validation against public instances.
+
+6. **Record created, NFA reputation updated, anchored to Greenfield** -- The inference record is stored on-chain with full audit trail. The agent's NFA reputation score is incremented, ERC-8004 validation entries are written, and proof data can be anchored to BNB Greenfield for permanent decentralized storage.
+
+## Security Features
+
+| Feature | Implementation |
+|---------|---------------|
+| Proof Replay Prevention | `keccak256(proof)` uniqueness check per submission |
+| BN254 Signed Comparison | Handles negative logits via field wrap-around (`value > HALF_P` means negative) |
+| Normalization Cross-Validation | On-chain DePIN raw data vs ZK public instances (tolerance +/-3 quantization units) |
+| Data Freshness | 30-minute staleness window (`DATA_FRESHNESS_WINDOW = 1800`) |
+| Hardware Signature | ECDSA verification via `ecrecover` against device registry |
+| Dual Verification Hard Gate | Both ZK proof AND DePIN signature must pass -- `require()` enforced, invalid proof/data reverts transaction |
+| Nonce-Protected DePIN Data | Per-station incrementing nonce prevents data replay |
+| Merkle-Verified Learning | Agent learning history committed as Merkle root, verifiable on-chain |
+| Anti-Sybil Reputation | Self-feedback blocked in ReputationRegistry (ERC-8004) |
 
 ## Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
-| ML Model | PyTorch MLP (4 -> 32 -> 16 -> 2), trained on 2000 synthetic weather samples, 97.7% accuracy |
-| ZK Proving | EZKL (Halo2 proof system, KZG commitments), proof size ~18 KB |
-| Smart Contracts | Solidity 0.8.24, Hardhat v3, OpenZeppelin v5, 28 passing tests |
-| Frontend | Next.js 14 (App Router), wagmi v2, RainbowKit, Tailwind CSS |
-| Chain Reading | viem (server-side) + wagmi (client-side) |
-| Network | BSC Testnet (chain 97), configured for opBNB Testnet (chain 5611) |
-| Storage | BNB Greenfield anchoring (content hash on-chain, data off-chain) |
+| Smart Contracts | Solidity 0.8.24, Hardhat 3, OpenZeppelin 5.x |
+| ZKML | EZKL v23, Halo2 (KZG), ONNX Runtime |
+| Frontend | Next.js 14, Tailwind CSS, wagmi v2, RainbowKit |
+| Prover Service | FastAPI, Python 3.11, Docker |
+| Agent Standard | BAP-578 (NFA), ERC-8004 (Validation + Reputation) |
+| Agent Wallet | ERC-6551 Token Bound Account (per-NFA smart wallet) |
+| Gas Abstraction | ERC-4337 Paymaster (sponsored agent transactions) |
+| Network | BNB Smart Chain Testnet |
 
----
+## Smart Contracts
 
-## How It Works
+### Core Contracts
 
-### 1. DePIN Data Collection
+| Contract | Purpose |
+|----------|---------|
+| `ZKClawGateway` | Core orchestrator: dual verification hard gate (ZK + DePIN), inference recording, Greenfield anchoring |
+| `NFA` (BAP-578) | Non-Fungible Agent with lifecycle management, BNB funding, ERC-6551 TBA auto-creation, reputation tracking, Merkle-verified learning |
+| `Halo2Verifier` | EZKL-generated on-chain ZK proof verifier (Halo2 KZG, logrows=15) |
+| `Halo2VerifierV2` | V2 verifier for in-circuit normalized model (raw sensor inputs as public inputs) |
+| `MockDePINOracle` | Hardware signature verification via ECDSA, device registry, nonce-based replay protection |
+| `ValidationRegistry` | ERC-8004 pull-based validation: request/response with monotonic scoring |
+| `ReputationRegistry` | ERC-8004 push-based reputation: feedback, revocation, WAD-normalized aggregation |
 
-Weather stations (simulating Marco hardware) record temperature, humidity, wind speed, and rainfall. Each reading is signed with the station's ECDSA private key. `MockDePINOracle.submitWeatherData()` stores the data and verifies the signature via `ecrecover`.
+### Agent Infrastructure (v2)
 
-### 2. ZKML Inference + Proof Generation
+| Contract | Purpose |
+|----------|---------|
+| `ERC6551Registry` | Token Bound Account factory: creates per-NFA smart contract wallets |
+| `ERC6551Account` | TBA implementation: owner derived from NFT, executeCall for autonomous transactions |
+| `AgentPaymaster` | Simplified ERC-4337 gas sponsorship: approveAgent/revokeAgent/sponsoredCall |
+| `BatchVerifier` | Proof aggregation: batch verification + batch gateway submission in single transaction |
 
-The signed sensor data feeds into a PyTorch MLP that decides whether conditions warrant an insurance claim. The EZKL pipeline:
+### Deployed Contracts (BSC Testnet)
+
+| Contract | Address |
+|----------|---------|
+| MockVerifier | `0x319729205CfBFd9CD1e8130Ed9D342542e310386` |
+| MockNFA | `0x9B83Bb788B4f96cA8c377EAFC5610502140214d1` |
+| MockValidationRegistry | `0x7f54dA182693394Ff0Bf77479e6d7b9003cf8f25` |
+| MockDePINOracle | `0xed7B5A8fc0249BdfB70363C083Ea828976eDFe89` |
+| ZKClawGateway | `0xae765e473f5549607093B1685e3199Bd6f0AD058` |
+
+## ZKML Pipeline
+
+The EZKL pipeline converts a trained ONNX model into a verifiable ZK circuit:
 
 ```
-train_model.py                    generate_proof.py
-  sklearn-style training            ezkl gen-settings
-  export ONNX (opset 18)           ezkl calibrate-settings
-  save norm_params.json            ezkl compile-circuit
-                                    ezkl get-srs (KZG params)
-                                    ezkl setup (pk + vk)
-                                    ezkl gen-witness
-                                    ezkl prove -> proof.json
-                                    ezkl verify (local check)
+gen_settings -> calibrate -> compile -> gen_srs -> setup -> gen_witness -> prove -> verify
 ```
 
-The proof attests: "this specific decision was computed by this specific model on this specific input" -- without exposing model weights.
+Then for on-chain deployment:
 
-### 3. On-Chain Verification
+```
+create_evm_verifier -> deploy Halo2Verifier.sol
+```
 
-`ZKClawGateway.submitVerifiedInference()` performs dual verification:
-- Checks the Halo2 ZK proof via the verifier contract
-- Checks the DePIN data signature via `ecrecover`
-- Extracts the decision from public instances (CLAIM vs NORMAL)
-- Records the inference with full audit trail
-- Updates the NFA's reputation score (BAP-578)
-- Writes a validation entry to ERC-8004 registry
-- Optionally anchors proof data to BNB Greenfield
+### V1 Model (deployed)
 
-Proof replay is prevented -- each `proofHash` can only be used once.
+**Model**: 3-layer MLP (4 -> 32 -> 16 -> 2), 738 parameters, 97.7% accuracy
 
-### 4. Reputation Accumulation
+- **Inputs**: `[temperature, humidity, windSpeed, rainfall]` (min-max normalized)
+- **Outputs**: `[logit_normal, logit_claim]` (BN254 field elements, negative values wrap around `p`)
+- **Decision**: `logit_claim > logit_normal` triggers CLAIM, otherwise NORMAL
+- **Claim trigger**: temp < -5C OR temp > 40C OR wind > 100km/h OR rain > 200mm OR (humidity > 95% AND rain > 100mm)
 
-Each verified inference increments the agent's on-chain reputation. The score lives inside the NFA (NFT) and cannot be faked -- only earned through successful ZK-verified actions. Third parties query `MockValidationRegistry.getSummary()` to audit cumulative trust.
+Normalization parameters are stored in `norm_params.json` and cross-validated on-chain against DePIN raw data.
 
----
+### V2 Model (in-circuit normalization)
 
-## Frontend
+**Model**: Same MLP with prepended normalization layer via ONNX graph surgery (`build_normalized_model.py`)
 
-Four pages built with Next.js 14 App Router:
-
-| Page | Route | Description |
-|------|-------|-------------|
-| Landing | `/` | Hero section with live on-chain stats, terminal-style EZKL pipeline visualization, architecture overview |
-| Dashboard | `/dashboard` | Agent cards with reputation scores and accuracy bars, verification record timeline with status badges |
-| Verify | `/verify` | Core demo: 4-step flow (DePIN input -> ZKML proof -> chain submit -> verified result) with weather presets |
-| Agent Profile | `/agent/[id]` | BAP-578 metadata, PredictionProfile stats, Merkle learning root, full verification history |
-
-**API routes:**
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/prove` | POST | Accepts weather data, normalizes, runs EZKL prove pipeline, returns proof + decision |
-| `/api/agents` | GET | Reads agent list + gateway stats from chain via viem |
-| `/api/records` | GET | Returns latest 20 verification records from chain |
-| `/api/history/[id]` | GET | Returns single agent info + verification history |
-| `/api/weather` | GET | Simulated DePIN station data (3 stations) |
-
----
+- **Inputs**: Raw sensor values `[temperature, humidity, windSpeed, rainfall]` (no external preprocessing)
+- **Normalization**: `(x - min) / (max - min)` computed inside the ZK circuit
+- **Security**: Eliminates normalization spoofing attack -- raw data becomes the public input, verifiable against DePIN oracle
+- **Verifier**: `Halo2VerifierV2.sol` (71.6KB source -- requires split deployment for production, see Known Limitations)
 
 ## Quick Start
 
-### Prerequisites
-
-- Node.js >= 18
-- Python 3.10+ with `ezkl`, `torch`, `numpy`, `onnx`
-- BSC Testnet tBNB from [faucet](https://www.bnbchain.org/en/testnet-faucet)
-
-### 1. Frontend
-
 ```bash
+# Clone
+git clone https://github.com/caohuize111/zk-claw.git
+cd zk-claw
+
+# Install dependencies
 npm install
+cd contracts && npm install && cd ..
+
+# Run contract tests (74 tests)
+cd contracts && npx hardhat test
+
+# Start frontend
 npm run dev
-# Open http://localhost:3000
+
+# Run prover service (requires EZKL + Python 3.11)
+cd prover-service
+pip install -r requirements.txt
+python main.py
 ```
 
-### 2. Contracts
-
-```bash
-cd contracts
-npm install
-npx hardhat test    # 28 tests
-
-# Deploy to BSC Testnet
-PRIVATE_KEY=0x... npx hardhat run scripts/deploy.ts --network bscTestnet
-```
-
-The deploy script automatically:
-- Deploys all 5 contracts
-- Registers a demo weather station (stationId=1001)
-- Submits hardware-signed weather data
-- Mints a demo NFA agent (WeatherGuard-01)
-- Binds ZKClawGateway as the agent's logic contract
-- Submits a demo inference
-- Anchors proof to Greenfield
-- Writes frontend config to `src/lib/deployed-contracts.ts`
-
-### 3. ZKML Pipeline
+### EZKL Pipeline (one-time setup)
 
 ```bash
 cd zkml
 pip install ezkl torch numpy onnx
 
-python train_model.py       # Train MLP, export ONNX, save norm_params
-python generate_proof.py    # Full EZKL pipeline: settings -> compile -> setup -> prove -> verify
+# Train model and export ONNX
+python train_model.py
+
+# V1 pipeline: settings -> compile -> setup -> prove -> verify -> generate EVM verifier
+python generate_proof.py
+
+# V2 pipeline (in-circuit normalization): build normalized model + full pipeline
+python build_normalized_model.py
+python generate_proof_v2.py
 ```
 
-Artifacts generated in `zkml/artifacts/`:
-- `model.compiled` -- Halo2 arithmetic circuit
-- `pk.key` / `vk.key` -- Proving and verification keys
-- `kzg.srs` -- Structured reference string
-- `proof.json` -- ZK-SNARK proof
-- `settings.json` -- Circuit parameters
-
-### 4. Production Build
+### Agent Daemon
 
 ```bash
-npm run build    # 8 routes compiled
-npm run start    # Production server
-```
+cd agent
+npm install
 
----
+# Demo mode (single inference cycle)
+npm run demo
+
+# Continuous monitoring mode
+npm run start
+```
 
 ## Project Structure
 
 ```
 zk-claw/
-  contracts/                          # Hardhat v3
+  contracts/                    # Hardhat 3 smart contracts (74 tests)
     contracts/
-      ZKClawGateway.sol               # Core orchestrator (284 lines)
-      MockNFA.sol                     # BAP-578 agent identity
-      MockValidationRegistry.sol      # ERC-8004 validation
-      MockDePINOracle.sol             # DePIN hardware signatures
-      MockVerifier.sol                # Fallback verifier
-      interfaces/IHalo2Verifier.sol
-      verifier/Halo2Verifier.sol      # EZKL-generated (reference)
-    test/ZKClaw.test.ts               # 28 tests
-    scripts/deploy.ts                 # Full deployment + demo init
-
-  zkml/                               # Python EZKL Pipeline
-    train_model.py                    # PyTorch MLP training + ONNX export
-    generate_proof.py                 # Full EZKL proving pipeline
-    model.onnx                        # Trained model
-    norm_params.json                  # Feature normalization parameters
-    artifacts/                        # Keys, proofs, circuit, SRS
-
-  src/                                # Next.js 14 Frontend
+      ZKClawGateway.sol         # Core gateway: dual verification hard gate + recording
+      NFA.sol                   # BAP-578 NFA + ERC-6551 TBA auto-creation
+      MockDePINOracle.sol       # DePIN hardware signature oracle + nonce replay protection
+      BatchVerifier.sol         # Proof aggregation: batch verify + batch submit
+      ValidationRegistry.sol    # ERC-8004 validation registry
+      ReputationRegistry.sol    # ERC-8004 reputation registry
+      verifier/
+        Halo2Verifier.sol       # EZKL-generated verifier (v1, logrows=15)
+        Halo2VerifierV2.sol     # EZKL-generated verifier (v2, in-circuit normalization)
+      agent/
+        ERC6551Registry.sol     # Token Bound Account factory
+        ERC6551Account.sol      # TBA implementation (owner = NFT holder)
+        AgentPaymaster.sol      # ERC-4337 gas sponsorship
+      interfaces/
+        IHalo2Verifier.sol
+        IBAP578.sol
+    test/
+      ZKClaw.test.ts            # Contract test suite (74 tests)
+  src/                          # Next.js 14 frontend
     app/
-      page.tsx                        # Landing (server component)
-      dashboard/page.tsx              # Dashboard (client)
-      verify/page.tsx                 # Verify demo (client)
-      agent/[id]/page.tsx             # Agent profile (client)
-      api/prove/route.ts              # EZKL proof generation endpoint
-      api/agents/route.ts             # Chain data reader
-      api/records/route.ts            # Verification records
-      api/history/[id]/route.ts       # Per-agent history
-      api/weather/route.ts            # Simulated DePIN data
-      providers.tsx                   # wagmi + RainbowKit (SSR-safe)
-      web3-provider.tsx               # Client-only web3 wrapper
-    components/NavBar.tsx             # Responsive navigation
+      page.tsx                  # Landing page
+      dashboard/page.tsx        # Dashboard with stats
+      verify/page.tsx           # 5-layer pipeline visualization + chain submission
+      agent/[id]/page.tsx       # Agent profile and history
     lib/
-      chain-reader.ts                 # Server-side viem client
-      contracts.ts                    # ABI definitions
-      contract-addresses.ts           # Deployed addresses
-      wagmi-config.ts                 # Client wagmi config
+      contracts.ts              # ABI definitions
+      wagmi-config.ts           # Chain and contract config
+    components/
+      NavBar.tsx                # Responsive navigation
+  zkml/                         # EZKL pipeline
+    model.onnx                  # V1: trained 3-layer MLP (normalized inputs)
+    model_v2.onnx               # V2: MLP with in-circuit normalization (raw inputs)
+    train_model.py              # Model training + ONNX export
+    generate_proof.py           # V1 EZKL 8-step pipeline
+    generate_proof_v2.py        # V2 EZKL pipeline (in-circuit normalization)
+    build_normalized_model.py   # ONNX graph surgery: prepend normalization layer
+    optimize.py                 # Logrows benchmarking
+    norm_params.json            # Min-max normalization parameters
+    artifacts/                  # V1 generated proofs, keys, SRS, verifier
+    artifacts_v2/               # V2 generated proofs, keys, SRS, verifier
+  prover-service/               # Standalone proof generation API
+    main.py                     # FastAPI async prover with semaphore
+    Dockerfile                  # Docker deployment config
+  agent/                        # AI Agent daemon
+    daemon.ts                   # 5-layer automated inference pipeline
+    package.json                # ethers v6 + tsx
+    .env.example                # Configuration template
 ```
-
----
-
-## Standards Integration
-
-### BAP-578 (Non-Fungible Agent)
-
-MockNFA implements the agent identity standard with:
-- `mint()` -- Create agent with metadata (name, persona, vaultURI, vaultHash)
-- `setLogicAddress()` -- Bind ZKClawGateway as the agent's logic contract
-- `executeAction()` -- Delegatecall to logic for sovereign decisions
-- `PredictionProfile` -- On-chain track record (total, correct, reputation, learningRoot)
-- `updateLearningRoot()` -- Merkle tree commitment for learning state
-
-### ERC-8004 (Trustless Agents)
-
-MockValidationRegistry implements pull-based validation with:
-- `validationRequest()` -- NFA requests ZKML validation
-- `validationResponse()` -- Gateway writes verified result (scores only go up, never down)
-- `getSummary()` -- Third parties query aggregated trust score
-
-### BNB Greenfield
-
-`ZKClawGateway.anchorToGreenField()` stores:
-- Greenfield object URI (e.g., `gnfd://zk-claw-bucket/proof-001`)
-- Content hash (keccak256 of raw sensor data + proof artifacts)
-- On-chain timestamp for immutable audit trail
-
----
-
-## ML Model Details
-
-| Parameter | Value |
-|-----------|-------|
-| Architecture | MLP: Linear(4,32) -> ReLU -> Linear(32,16) -> ReLU -> Linear(16,2) |
-| Parameters | 738 |
-| Training | 2000 synthetic weather samples, 1000 epochs, Adam lr=0.003 |
-| Accuracy | 97.7% |
-| Input | [temperature, humidity, wind_speed, rainfall] normalized to [0,1] |
-| Output | [logit_normal, logit_claim] -- argmax determines decision |
-| Claim trigger | temp < -5C OR temp > 40C OR wind > 100km/h OR rain > 200mm OR (humidity > 95% AND rain > 100mm) |
-
----
 
 ## Roadmap
 
-- [x] Train PyTorch MLP + export ONNX
-- [x] EZKL pipeline: prove + verify locally
-- [x] 5 smart contracts + 28 tests
-- [x] Deploy to BSC Testnet with demo state
-- [x] Next.js 14 frontend (4 pages + 5 API routes)
-- [x] DePIN hardware signature verification
-- [x] Greenfield storage anchoring
-- [x] 10-round end-to-end bug check
-- [ ] Deploy Halo2Verifier on-chain (currently >24KB, exploring split deployment)
-- [ ] Integrate real DePIN hardware (ESP32 + TEE key storage)
-- [ ] BNB Greenfield SDK for actual object upload
-- [ ] opBNB mainnet deployment (200M gas limit)
-- [ ] Multi-agent coordination with cross-verified inference chains
+| Feature | V1 (Deployed) | V2 (Implemented) | V3 (Planned) |
+|---------|--------------|-------------------|---------------|
+| Data Normalization | On-chain cross-validation | In-circuit preprocessing (ONNX graph surgery) | Full model retraining with raw inputs |
+| Agent Wallet | NFA + logic address | ERC-6551 Token Bound Account (auto-created on mint) | Multi-chain TBA |
+| Gas Management | User pays | ERC-4337 Paymaster (sponsoredCall) | EntryPoint v0.7 integration |
+| Proof Scaling | Single verification | BatchVerifier (batch verify + submit) | Recursive proof aggregation |
+| Hardware Trust | ECDSA simulation | Nonce-based replay protection | TEE/SE (IoTeX W3bstream, Phala) |
+| Prover Infrastructure | FastAPI + semaphore | Dual-mode API (pregenerated + realtime) | GPU cluster + Celery/Redis |
+| Data Transport | Direct submission | Agent daemon (auto-monitor) | MQTT / Waku decentralized messaging |
+| Verification Gate | Soft check (log only) | Hard gate (require + revert) | Slashing for malicious submissions |
 
----
+## Known Limitations
+
+- **V1 normalization**: Performed outside the ZK circuit; on-chain cross-validation compensates but is not zero-knowledge itself. V2 model with in-circuit normalization is implemented but its verifier (71.6KB) exceeds the 24KB EIP-170 deployment limit -- production use requires split deployment or further circuit optimization
+- TEE/Secure Enclave is simulated with EOA keys (production requires real hardware integration)
+- Single-station verification (no multi-station consensus/quorum)
+- Halo2Verifier V1 uses logrows=15 (13.1KB, within 24KB limit); V2 needs higher logrows due to normalization ops
+- AgentPaymaster uses a simplified `sponsoredCall` pattern rather than full ERC-4337 EntryPoint integration (sufficient for BSC testnet demo)
 
 ## License
 

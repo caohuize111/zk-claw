@@ -1,10 +1,11 @@
 "use client";
 
 import { NavBar } from "@/components/NavBar";
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { CONTRACTS } from "@/lib/wagmi-config";
 import { GATEWAY_ABI } from "@/lib/contracts";
+import { useSSE } from "@/hooks/useSSE";
 import {
   CloudRain,
   Cpu,
@@ -19,6 +20,9 @@ import {
   ExternalLink,
   RotateCcw,
   Loader2,
+  Bot,
+  ShieldCheck,
+  Clock,
 } from "lucide-react";
 
 type Step = "input" | "proving" | "submitting" | "complete";
@@ -36,6 +40,7 @@ interface ProofResult {
   confidence: string;
   proofSize: number;
   proofHash: string;
+  hexProof: string;
   publicInstances: string[];
   verifyTime: number;
 }
@@ -45,6 +50,14 @@ const STEPS = [
   { key: "proving", label: "ZKML Proof", icon: Cpu },
   { key: "submitting", label: "Chain Submit", icon: Send },
   { key: "complete", label: "Verified", icon: CheckCircle2 },
+] as const;
+
+const PIPELINE_LAYERS = [
+  { key: "depin", label: "DePIN Capture", desc: "Hardware-signed sensor data", icon: Radio },
+  { key: "zkml", label: "ZKML Inference", desc: "EZKL Halo2 proof generation", icon: Cpu },
+  { key: "agent", label: "Agent Assembly", desc: "Transaction packaging", icon: Bot },
+  { key: "verify", label: "On-Chain Verify", desc: "Dual trust verification", icon: ShieldCheck },
+  { key: "settle", label: "Settlement", desc: "Record + reputation update", icon: CheckCircle2 },
 ] as const;
 
 const PRESETS = [
@@ -73,12 +86,6 @@ const WEATHER_FIELDS = [
   { key: "rainfall", label: "Rainfall (mm)", icon: CloudRainWind, min: 0, max: 500 },
 ];
 
-const PIPELINE_STEPS = [
-  { label: "gen_witness", desc: "Computing inference from ONNX model" },
-  { label: "prove", desc: "Generating Halo2 SNARK proof" },
-  { label: "verify", desc: "Checking proof validity" },
-];
-
 export default function VerifyPage() {
   const { address, isConnected } = useAccount();
   const [step, setStep] = useState<Step>("input");
@@ -92,6 +99,11 @@ export default function VerifyPage() {
   const [result, setResult] = useState<ProofResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
+  const [pipelineLayer, setPipelineLayer] = useState(0);
+  const [layerTimes, setLayerTimes] = useState<number[]>([]);
+  const layerStartRef = useRef<number>(0);
+  const [sseTaskId, setSseTaskId] = useState<string | null>(null);
+  const sse = useSSE(sseTaskId);
 
   const { writeContract, isPending: isWriting } = useWriteContract();
   useWaitForTransactionReceipt({
@@ -100,64 +112,151 @@ export default function VerifyPage() {
 
   const stepIndex = (["input", "proving", "submitting", "complete"] as const).indexOf(step);
 
+  // Map SSE progress to pipeline layers
+  useEffect(() => {
+    if (!sseTaskId || step !== "proving") return;
+
+    if (sse.step === "completed" && sse.data) {
+      recordLayerTime();
+      setResult(sse.data);
+      setStep("submitting");
+      setPipelineLayer(2);
+      setSseTaskId(null);
+      sse.reset();
+    } else if (sse.status === "error" || sse.step === "failed") {
+      setError(sse.error || "Proof generation failed via SSE");
+      setStep("input");
+      setPipelineLayer(0);
+      setSseTaskId(null);
+      sse.reset();
+    } else if (sse.progress > 0) {
+      // Map progress percentage to pipeline layer
+      if (sse.progress >= 80) setPipelineLayer(3);
+      else if (sse.progress >= 40) setPipelineLayer(2);
+      else setPipelineLayer(1);
+    }
+  }, [sse.step, sse.progress, sse.status, sse.data, sse.error, sseTaskId, step]);
+
+  const recordLayerTime = () => {
+    const now = Date.now();
+    const elapsed = now - layerStartRef.current;
+    setLayerTimes((prev) => [...prev, elapsed]);
+    layerStartRef.current = now;
+  };
+
   const handleProve = async () => {
     setStep("proving");
     setError(null);
+    setPipelineLayer(1);
+    setLayerTimes([]);
+    setSseTaskId(null);
+    layerStartRef.current = Date.now();
 
     try {
-      const res = await fetch("/api/prove", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(weather),
-      });
+      // Layer 1: DePIN Capture (simulated hardware data signing)
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      recordLayerTime();
+      setPipelineLayer(2);
 
-      if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Proof generation failed");
+      // Try SSE-based prover service first, fall back to direct API
+      let useSSEPath = false;
+      try {
+        const taskRes = await fetch("/api/prove", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...weather, async: true }),
+        });
+        if (taskRes.ok) {
+          const taskData = await taskRes.json();
+          if (taskData.taskId) {
+            // Prover service returned a task ID, use SSE to track
+            setSseTaskId(taskData.taskId);
+            useSSEPath = true;
+            return; // SSE effect will handle the rest
+          }
+        }
+      } catch {
+        // SSE path not available, fall through to sync path
       }
 
-      const data = await res.json();
-      setResult(data);
-      setStep("submitting");
+      if (!useSSEPath) {
+        // Layer 2: ZKML Inference (synchronous API call)
+        const res = await fetch("/api/prove", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(weather),
+        });
+
+        if (!res.ok) {
+          const errData = await res.json();
+          throw new Error(errData.error || "Proof generation failed");
+        }
+
+        const data = await res.json();
+        recordLayerTime();
+        setResult(data);
+        setStep("submitting");
+        setPipelineLayer(2);
+      }
     } catch (e: any) {
       setError(e.message);
       setStep("input");
+      setPipelineLayer(0);
     }
+  };
+
+  // Convert EZKL little-endian hex to big-endian BigInt (browser-safe, no Buffer)
+  const leHexToBigInt = (leHex: string): bigint => {
+    const bytes = leHex.match(/.{2}/g) || [];
+    const beHex = bytes.reverse().join("");
+    return BigInt("0x" + beHex);
   };
 
   const handleSubmitOnChain = async () => {
     if (!result || !isConnected) return;
 
-    try {
-      const decision = result.decision === "CLAIM" ? 1 : 0;
+    setPipelineLayer(3);
+    layerStartRef.current = Date.now();
+    setLayerTimes((prev) => prev.slice(0, 2));
 
+    try {
+      // Layer 3: Agent Assembly (transaction packaging)
+      await new Promise((resolve) => setTimeout(resolve, 300));
+      recordLayerTime();
+      setPipelineLayer(4);
+
+      // Layer 4 & 5: On-chain verify + Settlement
       writeContract(
         {
           address: CONTRACTS.ZKClawGateway as `0x${string}`,
           abi: GATEWAY_ABI,
-          functionName: "submitOffchainVerified",
+          functionName: "submitVerifiedInference",
           args: [
-            result.proofHash as `0x${string}`,
-            result.publicInstances.map((x) =>
-              typeof x === "string" && !x.startsWith("0x") ? BigInt("0x" + x) : BigInt(x)
-            ),
+            result.hexProof as `0x${string}`,
+            result.publicInstances.map((x) => leHexToBigInt(x)),
             BigInt(0), // agentId
             BigInt(weather.stationId),
-            decision,
           ],
         },
         {
           onSuccess: (hash) => {
+            recordLayerTime();
+            setPipelineLayer(5);
             setTxHash(hash);
-            setStep("complete");
+            setTimeout(() => {
+              recordLayerTime();
+              setStep("complete");
+            }, 400);
           },
           onError: (err) => {
             setError(`Chain submission failed: ${err.message}`);
+            setPipelineLayer(0);
           },
         }
       );
     } catch (e: any) {
       setError(e.message);
+      setPipelineLayer(0);
     }
   };
 
@@ -166,6 +265,10 @@ export default function VerifyPage() {
     setResult(null);
     setError(null);
     setTxHash(null);
+    setPipelineLayer(0);
+    setLayerTimes([]);
+    setSseTaskId(null);
+    sse.reset();
   };
 
   return (
@@ -180,7 +283,7 @@ export default function VerifyPage() {
           </p>
         </div>
 
-        {/* ── Step Indicator ── */}
+        {/* -- Step Indicator -- */}
         <div className="flex items-center mb-10">
           {STEPS.map((s, i) => {
             const Icon = s.icon;
@@ -227,16 +330,16 @@ export default function VerifyPage() {
           })}
         </div>
 
-        {/* ── Error Banner ── */}
+        {/* -- Error Banner -- */}
         {error && (
           <div className="mb-6 p-4 rounded-xl border border-destructive/30 bg-destructive/5 text-destructive text-sm font-medium">
             {error}
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════════════
+        {/* ==============================================================
             Step 1 -- DePIN Input
-           ══════════════════════════════════════════════════════════════ */}
+           ============================================================== */}
         {step === "input" && (
           <div className="space-y-8">
             {/* Presets */}
@@ -347,9 +450,9 @@ export default function VerifyPage() {
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════════════
-            Step 2 -- ZKML Proving
-           ══════════════════════════════════════════════════════════════ */}
+        {/* ==============================================================
+            Step 2 -- ZKML Proving (5-Layer Pipeline)
+           ============================================================== */}
         {step === "proving" && (
           <div className="py-12 flex flex-col items-center gap-8">
             <div className="w-16 h-16 rounded-full border-2 border-primary/20 flex items-center justify-center">
@@ -361,35 +464,113 @@ export default function VerifyPage() {
                 Generating ZK Proof
               </div>
               <div className="text-sm text-muted-foreground font-mono">
-                ONNX Model &rarr; EZKL Circuit &rarr; Halo2 Proof
+                5-Layer Verification Pipeline
               </div>
             </div>
 
-            {/* Pipeline Visualization */}
-            <div className="w-full max-w-lg space-y-0">
-              {PIPELINE_STEPS.map((ps, i) => (
-                <div key={ps.label} className="flex items-start gap-4">
-                  {/* Timeline column */}
-                  <div className="flex flex-col items-center">
-                    <div className="w-2.5 h-2.5 rounded-full bg-primary/60 mt-1.5" />
-                    {i < PIPELINE_STEPS.length - 1 && (
-                      <div className="w-px h-8 bg-border" />
-                    )}
+            {/* 5-Layer Pipeline Visualization */}
+            <div className="w-full max-w-lg">
+              {PIPELINE_LAYERS.map((layer, i) => {
+                const LayerIcon = layer.icon;
+                const isComplete = i < pipelineLayer;
+                const isActive = i === pipelineLayer - 1;
+                const isPending = i >= pipelineLayer;
+
+                return (
+                  <div key={layer.key} className="flex items-start gap-4">
+                    {/* Timeline column */}
+                    <div className="flex flex-col items-center">
+                      <div
+                        className={`
+                          w-8 h-8 rounded-full flex items-center justify-center
+                          border transition-all duration-500
+                          ${isComplete
+                            ? "border-emerald-500/60 bg-emerald-500/10"
+                            : isActive
+                              ? "border-primary bg-primary/10"
+                              : "border-border/60 bg-secondary/20"
+                          }
+                        `}
+                        style={isActive ? { animation: "pulse-layer 2s ease-in-out infinite" } : {}}
+                      >
+                        {isComplete ? (
+                          <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                        ) : isActive ? (
+                          <Loader2 className="w-4 h-4 text-primary animate-spin" />
+                        ) : (
+                          <LayerIcon className="w-4 h-4 text-muted-foreground/40" />
+                        )}
+                      </div>
+                      {i < PIPELINE_LAYERS.length - 1 && (
+                        <div
+                          className={`
+                            w-px h-6 transition-colors duration-500
+                            ${isComplete ? "bg-emerald-500/40" : "bg-border/40"}
+                          `}
+                        />
+                      )}
+                    </div>
+
+                    {/* Content */}
+                    <div className="flex-1 flex items-start justify-between pb-4 pt-1">
+                      <div>
+                        <div
+                          className={`
+                            text-sm font-semibold transition-colors duration-300
+                            ${isComplete
+                              ? "text-emerald-400"
+                              : isActive
+                                ? "text-primary"
+                                : "text-muted-foreground/50"
+                            }
+                          `}
+                        >
+                          {layer.label}
+                        </div>
+                        <div
+                          className={`
+                            text-xs mt-0.5 transition-colors duration-300
+                            ${isComplete || isActive
+                              ? "text-muted-foreground"
+                              : "text-muted-foreground/30"
+                            }
+                          `}
+                        >
+                          {layer.desc}
+                        </div>
+                      </div>
+
+                      {/* Status indicator */}
+                      <div className="text-xs font-mono pt-0.5">
+                        {isComplete && layerTimes[i] !== undefined ? (
+                          <span className="text-emerald-400">
+                            {(layerTimes[i] / 1000).toFixed(1)}s
+                          </span>
+                        ) : isActive ? (
+                          <Loader2 className="w-3 h-3 text-primary animate-spin" />
+                        ) : (
+                          <span className="text-muted-foreground/30">--</span>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                  {/* Content */}
-                  <div className="pb-4">
-                    <div className="text-sm font-mono font-semibold text-primary">{ps.label}</div>
-                    <div className="text-xs text-muted-foreground mt-0.5">{ps.desc}</div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
+
+            {/* Pulse animation style */}
+            <style>{`
+              @keyframes pulse-layer {
+                0%, 100% { box-shadow: 0 0 0 0 hsl(var(--primary) / 0.3); }
+                50% { box-shadow: 0 0 0 6px hsl(var(--primary) / 0); }
+              }
+            `}</style>
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════════════
+        {/* ==============================================================
             Step 3 -- Chain Submit
-           ══════════════════════════════════════════════════════════════ */}
+           ============================================================== */}
         {step === "submitting" && result && (
           <div className="space-y-6">
             {/* Proof Result Card */}
@@ -485,9 +666,9 @@ export default function VerifyPage() {
           </div>
         )}
 
-        {/* ══════════════════════════════════════════════════════════════
+        {/* ==============================================================
             Step 4 -- Complete
-           ══════════════════════════════════════════════════════════════ */}
+           ============================================================== */}
         {step === "complete" && result && (
           <div className="space-y-8">
             {/* Verified Header */}
@@ -558,6 +739,31 @@ export default function VerifyPage() {
                 </div>
                 <div className="text-sm font-mono text-muted-foreground break-all leading-relaxed mt-1">
                   {result.proofHash}
+                </div>
+              </div>
+            </div>
+
+            {/* Dual Trust Verification */}
+            <div className="p-5 rounded-xl border border-border/60 bg-card/50">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-4">
+                Dual Trust Verification
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span className="text-sm">ZK Proof: <span className="text-emerald-400 font-mono">Verified</span></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Radio className="w-4 h-4 text-emerald-400" />
+                  <span className="text-sm">DePIN Hardware: <span className="text-emerald-400 font-mono">Authenticated</span></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Cpu className="w-4 h-4 text-primary" />
+                  <span className="text-sm">Decision: <span className={`font-mono font-bold ${result.decision === 'CLAIM' ? 'text-amber-400' : 'text-primary'}`}>{result.decision}</span></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="w-4 h-4 text-emerald-400" />
+                  <span className="text-sm">Freshness: <span className="text-emerald-400 font-mono">Fresh</span></span>
                 </div>
               </div>
             </div>

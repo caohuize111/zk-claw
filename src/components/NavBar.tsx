@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, ShieldCheck, Home } from "lucide-react";
+import { LayoutDashboard, ShieldCheck, Home, Wallet, Layers, Bot } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: Home },
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Agents", icon: Bot },
   { href: "/verify", label: "Verify", icon: ShieldCheck },
+  { href: "/paymaster", label: "Paymaster", icon: Wallet },
+  { href: "/batch", label: "Batch", icon: Layers },
 ];
 
 export function NavBar() {
@@ -21,7 +23,7 @@ export function NavBar() {
         <div className="flex h-14 items-center justify-between">
           <div className="flex items-center gap-4 sm:gap-8">
             <Link href="/" className="flex items-center gap-2.5 cursor-pointer group">
-              <div className="relative w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center transition-colors duration-200">
+              <div className="relative w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center transition-all duration-200 group-hover:bg-primary/15 group-hover:border-primary/50 group-hover:shadow-[0_0_12px_-4px_hsl(var(--primary)/0.3)]">
                 <span className="text-primary font-bold text-xs font-mono tracking-wider">ZK</span>
               </div>
               <span className="font-semibold text-base tracking-tight hidden sm:inline">
