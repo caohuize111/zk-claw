@@ -94,7 +94,7 @@ export default function VerifyPage() {
   const [txHash, setTxHash] = useState<string | null>(null);
 
   const { writeContract, isPending: isWriting } = useWriteContract();
-  const { isLoading: isTxPending, isSuccess: isTxSuccess } = useWaitForTransactionReceipt({
+  useWaitForTransactionReceipt({
     hash: txHash as `0x${string}` | undefined,
   });
 

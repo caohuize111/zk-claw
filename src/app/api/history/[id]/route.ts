@@ -9,6 +9,10 @@ export async function GET(
 ) {
   const agentId = parseInt(params.id);
 
+  if (isNaN(agentId) || agentId < 0) {
+    return NextResponse.json({ error: "Invalid agent ID" }, { status: 400 });
+  }
+
   const [records, agents] = await Promise.all([
     fetchAgentRecords(agentId),
     fetchAgents(),

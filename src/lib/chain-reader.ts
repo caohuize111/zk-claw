@@ -1,4 +1,4 @@
-import { createPublicClient, http, formatUnits } from "viem";
+import { createPublicClient, http } from "viem";
 import { bscTestnet } from "viem/chains";
 import { CONTRACTS } from "./contract-addresses";
 import { GATEWAY_ABI, NFA_ABI, DEPIN_ORACLE_ABI } from "./contracts";
