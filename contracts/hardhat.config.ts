@@ -9,9 +9,10 @@ export default defineConfig({
     settings: {
       optimizer: {
         enabled: true,
-        runs: 200,
+        runs: 1,  // minimize bytecode (Halo2Verifier is large)
       },
-      viaIR: true,
+      // viaIR disabled: EZKL Halo2Verifier uses deep assembly stacks
+      // that exceed the Yul optimizer's stack depth limit
     },
   },
   plugins: [hardhatEthers, hardhatNetworkHelpers, hardhatNodeTestRunner],

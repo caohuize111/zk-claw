@@ -98,7 +98,7 @@ contract ZKClawGateway {
         // Verify the ZK proof on-chain
         bool verified = false;
         if (address(verifier) != address(0)) {
-            try verifier.verify(proof, publicInstances) returns (bool result) {
+            try verifier.verifyProof(proof, publicInstances) returns (bool result) {
                 verified = result;
             } catch {
                 verified = false;
