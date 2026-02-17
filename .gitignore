@@ -1,0 +1,29 @@
+node_modules/
+.next/
+out/
+dist/
+.env
+.env.local
+.env.production
+
+# Hardhat
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+
+# EZKL artifacts (large binary files)
+zkml/artifacts/
+zkml/*.compiled
+zkml/*.key
+zkml/*.srs
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Deploy
+contracts/deployed-addresses.json
