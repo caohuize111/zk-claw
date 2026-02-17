@@ -4,6 +4,12 @@ import hardhatNetworkHelpers from "@nomicfoundation/hardhat-network-helpers";
 import hardhatNodeTestRunner from "@nomicfoundation/hardhat-node-test-runner";
 
 export default defineConfig({
+  networks: {
+    hardhat: {
+      type: "edr",
+      blockGasLimit: 60_000_000, // 60M for ZK verification + VKA storage reads
+    },
+  },
   solidity: {
     version: "0.8.24",
     settings: {

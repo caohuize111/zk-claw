@@ -835,6 +835,97 @@ describe("ZK-Claw", () => {
   });
 
   // ═══════════════════════════════════════════════════════════════
+  // Halo2VerifierV2 - Reusable Verifier (EIP-170 Solution)
+  // ═══════════════════════════════════════════════════════════════
+
+  describe("Halo2VerifierV2 - Reusable Verifier (EIP-170 Solution)", () => {
+    let reusableVerifier: any;
+    let v2Wrapper: any;
+
+    before(async () => {
+      // Deploy reusable verifier (10.63KB - generic, circuit-agnostic)
+      const Reusable = await ethers.getContractFactory("Halo2VerifierReusable");
+      reusableVerifier = await Reusable.deploy();
+      await reusableVerifier.waitForDeployment();
+
+      // Load V1 VKA (same circuit as monolithic Halo2Verifier, but VK extracted)
+      const vkaPath = path.join(__dirname, "../../zkml/artifacts/vka_hex.json");
+      const vkaHex: string[] = JSON.parse(fs.readFileSync(vkaPath, "utf-8"));
+
+      // Deploy V2 wrapper (1.16KB - stores VKA, exposes same interface)
+      const V2Wrapper = await ethers.getContractFactory("Halo2VerifierV2");
+      v2Wrapper = await V2Wrapper.deploy(await reusableVerifier.getAddress(), vkaHex);
+      await v2Wrapper.waitForDeployment();
+    });
+
+    it("should deploy within EIP-170 limit (reusable + wrapper < 24KB)", async () => {
+      // Both contracts deployed successfully -- total ~11.79KB
+      assert.ok(await reusableVerifier.getAddress());
+      assert.ok(await v2Wrapper.getAddress());
+      const vkaLen = await v2Wrapper.vkaLength();
+      assert.ok(vkaLen > 0n, "VKA should be stored");
+    });
+
+    it("should verify real EZKL proof through reusable verifier", async () => {
+      const proofPath = path.join(__dirname, "../../zkml/artifacts/proof.json");
+      const proofData = JSON.parse(fs.readFileSync(proofPath, "utf-8"));
+      const hexProof = proofData.hex_proof;
+      const instances = proofData.instances[0].map((inst: string) => {
+        const buf = Buffer.from(inst, "hex");
+        const be = Buffer.from(buf).reverse();
+        return BigInt("0x" + be.toString("hex"));
+      });
+
+      // Verify via V2 wrapper (same interface as V1 monolithic)
+      // Higher gas: wrapper loads 158 bytes32 from storage + EC pairing ops
+      const result = await v2Wrapper.verifyProof.staticCall(hexProof, instances);
+      assert.equal(result, true, "Reusable verifier should verify real EZKL proof");
+    });
+
+    it("should reject tampered proof through reusable verifier", async () => {
+      const proofPath = path.join(__dirname, "../../zkml/artifacts/proof.json");
+      const proofData = JSON.parse(fs.readFileSync(proofPath, "utf-8"));
+      const tampered = proofData.hex_proof.slice(0, 10) + "ff" + proofData.hex_proof.slice(12);
+      const instances = proofData.instances[0].map((inst: string) => {
+        const buf = Buffer.from(inst, "hex");
+        const be = Buffer.from(buf).reverse();
+        return BigInt("0x" + be.toString("hex"));
+      });
+
+      await assert.rejects(
+        v2Wrapper.verifyProof(tampered, instances),
+        "Tampered proof should be rejected by reusable verifier"
+      );
+    });
+
+    it("should be compatible with Gateway (same verifyProof interface)", async () => {
+      // Prove the V2 wrapper is a drop-in replacement for V1 monolithic verifier:
+      // Gateway can point to it via setVerifier, and proof verification works.
+      // (We don't submit through gateway to avoid 'Proof already used' since
+      //  the V1 E2E test above already submitted this proof.)
+      await gateway.setVerifier(await v2Wrapper.getAddress());
+      assert.equal(await gateway.verifier(), await v2Wrapper.getAddress());
+
+      // Verify the wrapper exposes the same interface the gateway expects
+      const proofPath = path.join(__dirname, "../../zkml/artifacts/proof.json");
+      const proofData = JSON.parse(fs.readFileSync(proofPath, "utf-8"));
+      const hexProof = proofData.hex_proof;
+      const instances = proofData.instances[0].map((inst: string) => {
+        const buf = Buffer.from(inst, "hex");
+        const be = Buffer.from(buf).reverse();
+        return BigInt("0x" + be.toString("hex"));
+      });
+
+      // Direct verification via wrapper confirms it works
+      const result = await v2Wrapper.verifyProof.staticCall(hexProof, instances);
+      assert.equal(result, true, "V2 wrapper should verify proof (Gateway-compatible interface)");
+
+      // Restore mock verifier for subsequent tests
+      await gateway.setVerifier(await mockVerifier.getAddress());
+    });
+  });
+
+  // ═══════════════════════════════════════════════════════════════
   // Integration: Full Flow
   // ═══════════════════════════════════════════════════════════════
 
