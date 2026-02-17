@@ -4,42 +4,52 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { cn } from "@/lib/utils";
+import { LayoutDashboard, ShieldCheck, Home } from "lucide-react";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Home" },
-  { href: "/dashboard", label: "Dashboard" },
-  { href: "/verify", label: "Verify" },
+  { href: "/", label: "Home", icon: Home },
+  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/verify", label: "Verify", icon: ShieldCheck },
 ];
 
 export function NavBar() {
   const pathname = usePathname();
 
   return (
-    <nav className="border-b border-border bg-card/50 backdrop-blur-sm sticky top-0 z-50">
+    <nav className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex h-16 items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary/20 border border-primary/30 flex items-center justify-center">
-                <span className="text-primary font-bold text-sm font-mono">ZK</span>
+        <div className="flex h-14 items-center justify-between">
+          <div className="flex items-center gap-4 sm:gap-8">
+            <Link href="/" className="flex items-center gap-2.5 cursor-pointer group">
+              <div className="relative w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center transition-colors duration-200">
+                <span className="text-primary font-bold text-xs font-mono tracking-wider">ZK</span>
               </div>
-              <span className="font-semibold text-lg">ZK-Claw</span>
+              <span className="font-semibold text-base tracking-tight hidden sm:inline">
+                ZK-Claw
+              </span>
             </Link>
-            <div className="hidden sm:flex items-center gap-1">
-              {NAV_ITEMS.map((item) => (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={cn(
-                    "px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                    pathname === item.href
-                      ? "bg-primary/10 text-primary"
-                      : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
-                  )}
-                >
-                  {item.label}
-                </Link>
-              ))}
+            <div className="flex items-center gap-0.5">
+              {NAV_ITEMS.map((item) => {
+                const Icon = item.icon;
+                const isActive = item.href === "/"
+                  ? pathname === "/"
+                  : pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "px-2.5 sm:px-3 py-1.5 rounded-md text-sm font-medium transition-colors duration-200 flex items-center gap-1.5 cursor-pointer",
+                      isActive
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground hover:text-foreground hover:bg-secondary/50"
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">{item.label}</span>
+                  </Link>
+                );
+              })}
             </div>
           </div>
           <ConnectButton showBalance={false} chainStatus="icon" />

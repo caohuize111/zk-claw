@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 
+export const dynamic = "force-dynamic";
+
 // Simulated DePIN weather station data
 const STATIONS = [
   {

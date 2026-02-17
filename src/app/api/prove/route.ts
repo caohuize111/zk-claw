@@ -7,7 +7,7 @@ import crypto from "crypto";
 
 const execAsync = promisify(exec);
 
-const ZKML_DIR = path.join(process.cwd(), "..", "zkml");
+const ZKML_DIR = path.join(process.cwd(), "zkml");
 const ARTIFACTS_DIR = path.join(ZKML_DIR, "artifacts");
 
 // Normalization params from training
