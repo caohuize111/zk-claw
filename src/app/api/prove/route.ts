@@ -81,8 +81,34 @@ const REALTIME_ENABLED = process.env.ENABLE_REALTIME_PROVE === "true";
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
 
+// ── Rate Limiting (in-memory, per-IP, 10 requests per minute) ──
+const RATE_LIMIT_WINDOW = 60_000; // 1 minute
+const RATE_LIMIT_MAX = 10;
+const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = rateLimitMap.get(ip);
+  if (!entry || now > entry.resetAt) {
+    rateLimitMap.set(ip, { count: 1, resetAt: now + RATE_LIMIT_WINDOW });
+    return true;
+  }
+  if (entry.count >= RATE_LIMIT_MAX) return false;
+  entry.count++;
+  return true;
+}
+
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit by IP
+    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    if (!checkRateLimit(ip)) {
+      return NextResponse.json(
+        { error: "Rate limit exceeded. Max 10 requests per minute." },
+        { status: 429 }
+      );
+    }
+
     const body = await req.json();
     const { temperature, humidity, windSpeed, rainfall } = body;
 

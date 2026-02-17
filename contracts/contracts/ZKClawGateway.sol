@@ -228,12 +228,8 @@ contract ZKClawGateway is ReentrancyGuard {
             }
         }
 
-        // Auto claim payout: if decision is CLAIM and payout is configured, transfer from NFA
-        if (decision == 1 && claimPayoutAddresses[agentId] != address(0) && claimPayoutAmounts[agentId] > 0) {
-            try nfa.gatewayWithdraw(agentId, claimPayoutAmounts[agentId], claimPayoutAddresses[agentId]) {
-                emit ClaimPayoutTriggered(agentId, claimPayoutAddresses[agentId], claimPayoutAmounts[agentId]);
-            } catch {}
-        }
+        // Auto claim payout (one-shot: clears amount after success)
+        _handleAutoPayout(agentId, decision);
 
         emit InferenceSubmitted(agentId, recordIndex, proofHash, verified, decision, dataAuthentic);
     }
@@ -285,12 +281,8 @@ contract ZKClawGateway is ReentrancyGuard {
 
         try nfa.incrementReputation(agentId) {} catch {}
 
-        // Auto claim payout for offchain verified too
-        if (decision == 1 && claimPayoutAddresses[agentId] != address(0) && claimPayoutAmounts[agentId] > 0) {
-            try nfa.gatewayWithdraw(agentId, claimPayoutAmounts[agentId], claimPayoutAddresses[agentId]) {
-                emit ClaimPayoutTriggered(agentId, claimPayoutAddresses[agentId], claimPayoutAmounts[agentId]);
-            } catch {}
-        }
+        // Auto claim payout (one-shot: clears amount after success)
+        _handleAutoPayout(agentId, uint8(decision));
 
         emit InferenceSubmitted(agentId, recordIndex, proofHash, true, uint8(decision), dataAuthentic);
     }
@@ -522,12 +514,20 @@ contract ZKClawGateway is ReentrancyGuard {
         }
     }
 
-    /// @dev Handle auto claim payout if decision == 1
+    /// @dev Handle auto claim payout if decision == 1. Clears payout amount after success
+    ///      to prevent repeated drain from multiple submissions.
     function _handleAutoPayout(uint256 agentId, uint8 decision) internal {
         if (decision == 1 && claimPayoutAddresses[agentId] != address(0) && claimPayoutAmounts[agentId] > 0) {
-            try nfa.gatewayWithdraw(agentId, claimPayoutAmounts[agentId], claimPayoutAddresses[agentId]) {
-                emit ClaimPayoutTriggered(agentId, claimPayoutAddresses[agentId], claimPayoutAmounts[agentId]);
-            } catch {}
+            uint256 amount = claimPayoutAmounts[agentId];
+            address payoutAddr = claimPayoutAddresses[agentId];
+            // Clear payout BEFORE external call (CEI pattern)
+            claimPayoutAmounts[agentId] = 0;
+            try nfa.gatewayWithdraw(agentId, amount, payoutAddr) {
+                emit ClaimPayoutTriggered(agentId, payoutAddr, amount);
+            } catch {
+                // Restore on failure so admin can retry
+                claimPayoutAmounts[agentId] = amount;
+            }
         }
     }
 

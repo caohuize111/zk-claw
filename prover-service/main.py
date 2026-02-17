@@ -140,7 +140,8 @@ def normalize(raw: list[float]) -> list[float]:
 
 def le_hex_to_int(le_hex: str) -> int:
     """Convert EZKL little-endian hex instance to big-endian integer."""
-    return int.from_bytes(bytes.fromhex(le_hex), "little")
+    clean = le_hex.removeprefix("0x").removeprefix("0X")
+    return int.from_bytes(bytes.fromhex(clean), "little")
 
 
 def extract_decision(instances: list[str]) -> str:

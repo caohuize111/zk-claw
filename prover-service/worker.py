@@ -34,7 +34,8 @@ def _normalize(raw: list[float]) -> list[float]:
 
 
 def _le_hex_to_int(le_hex: str) -> int:
-    return int.from_bytes(bytes.fromhex(le_hex), "little")
+    clean = le_hex.removeprefix("0x").removeprefix("0X")
+    return int.from_bytes(bytes.fromhex(clean), "little")
 
 
 def _extract_decision(instances: list[str]) -> str:
