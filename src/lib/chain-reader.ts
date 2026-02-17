@@ -12,7 +12,7 @@ export const publicClient = createPublicClient({
 export async function fetchAgents() {
   try {
     const totalAgents = await publicClient.readContract({
-      address: CONTRACTS.MockNFA as `0x${string}`,
+      address: CONTRACTS.NFA as `0x${string}`,
       abi: NFA_ABI,
       functionName: "totalAgents",
     });
@@ -23,13 +23,13 @@ export async function fetchAgents() {
     for (let i = 0; i < count; i++) {
       const [metadata, profile] = await Promise.all([
         publicClient.readContract({
-          address: CONTRACTS.MockNFA as `0x${string}`,
+          address: CONTRACTS.NFA as `0x${string}`,
           abi: NFA_ABI,
           functionName: "getMetadata",
           args: [BigInt(i)],
         }),
         publicClient.readContract({
-          address: CONTRACTS.MockNFA as `0x${string}`,
+          address: CONTRACTS.NFA as `0x${string}`,
           abi: NFA_ABI,
           functionName: "getProfile",
           args: [BigInt(i)],

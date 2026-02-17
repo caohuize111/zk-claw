@@ -44,7 +44,7 @@ export default function AgentManagePage() {
   const [mintPersona, setMintPersona] = useState("");
   const [mintVaultURI, setMintVaultURI] = useState("");
 
-  const nfaAddr = CONTRACTS.MockNFA as `0x${string}`;
+  const nfaAddr = CONTRACTS.NFA as `0x${string}`;
 
   // Read agent state
   const { data: agentState, refetch: refetchState } = useReadContract({

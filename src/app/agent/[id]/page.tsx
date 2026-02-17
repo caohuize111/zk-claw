@@ -79,7 +79,7 @@ export default function AgentProfilePage() {
 
   // TBA reads
   const tokenId = BigInt(agentId);
-  const nfaAddr = CONTRACTS.MockNFA as `0x${string}`;
+  const nfaAddr = CONTRACTS.NFA as `0x${string}`;
 
   const { data: tbaAddress } = useReadContract({
     address: nfaAddr,

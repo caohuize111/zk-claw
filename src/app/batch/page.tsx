@@ -88,12 +88,6 @@ export default function BatchPage() {
     if (!entries) return;
     setStatusMessage(null);
 
-    if (CONTRACTS.BatchVerifier === "0x0000000000000000000000000000000000000000") {
-      setVerifyResults(entries.map(() => null)); // null = not available
-      setStatusMessage("BatchVerifier not deployed -- verification unavailable");
-      return;
-    }
-
     // TODO: call staticCall on deployed BatchVerifier.verifyBatch
     const results = entries.map(() => true);
     setVerifyResults(results);

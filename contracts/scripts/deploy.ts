@@ -3,7 +3,7 @@ import hre from "hardhat";
 async function main() {
   console.log("=" .repeat(60));
   console.log("ZK-Claw: Verifiable Intelligence Gateway");
-  console.log("Deployment Script");
+  console.log("Full Deployment Script (13 contracts)");
   console.log("=" .repeat(60));
 
   // Hardhat v3: ethers via network connection
@@ -21,12 +21,12 @@ async function main() {
   }
 
   // ============================================
-  // Phase 1: Deploy Contracts
+  // Phase 1: Core Contracts (7)
   // ============================================
-  console.log("\n--- Phase 1: Deploy Contracts ---\n");
+  console.log("\n--- Phase 1: Core Contracts ---\n");
 
   // 1. Halo2Verifier (EZKL-generated, real ZK proof verification)
-  console.log("[1/7] Deploying Halo2Verifier (EZKL, 13 KB)...");
+  console.log("[1/13] Deploying Halo2Verifier (EZKL, 13 KB)...");
   const Halo2Verifier = await ethers.getContractFactory("Halo2Verifier");
   const halo2Verifier = await Halo2Verifier.deploy();
   await halo2Verifier.waitForDeployment();
@@ -34,7 +34,7 @@ async function main() {
   console.log("  Halo2Verifier:", verifierAddr);
 
   // 2. NFA (BAP-578 full implementation)
-  console.log("[2/7] Deploying NFA (BAP-578)...");
+  console.log("[2/13] Deploying NFA (BAP-578)...");
   const NFA = await ethers.getContractFactory("NFA");
   const nfa = await NFA.deploy();
   await nfa.waitForDeployment();
@@ -42,7 +42,7 @@ async function main() {
   console.log("  NFA:", nfaAddr);
 
   // 3. ValidationRegistry (ERC-8004)
-  console.log("[3/7] Deploying ValidationRegistry (ERC-8004)...");
+  console.log("[3/13] Deploying ValidationRegistry (ERC-8004)...");
   const ValidationRegistry = await ethers.getContractFactory("ValidationRegistry");
   const validationRegistry = await ValidationRegistry.deploy(nfaAddr);
   await validationRegistry.waitForDeployment();
@@ -50,7 +50,7 @@ async function main() {
   console.log("  ValidationRegistry:", validationAddr);
 
   // 4. ReputationRegistry (ERC-8004)
-  console.log("[4/7] Deploying ReputationRegistry (ERC-8004)...");
+  console.log("[4/13] Deploying ReputationRegistry (ERC-8004)...");
   const ReputationRegistry = await ethers.getContractFactory("ReputationRegistry");
   const reputationRegistry = await ReputationRegistry.deploy(nfaAddr);
   await reputationRegistry.waitForDeployment();
@@ -58,7 +58,7 @@ async function main() {
   console.log("  ReputationRegistry:", reputationAddr);
 
   // 5. MockDePINOracle (Hardware Signature Verification)
-  console.log("[5/7] Deploying MockDePINOracle...");
+  console.log("[5/13] Deploying MockDePINOracle...");
   const MockDePINOracle = await ethers.getContractFactory("MockDePINOracle");
   const depinOracle = await MockDePINOracle.deploy();
   await depinOracle.waitForDeployment();
@@ -66,26 +66,98 @@ async function main() {
   console.log("  MockDePINOracle:", oracleAddr);
 
   // 6. ZKClawGateway
-  console.log("[6/7] Deploying ZKClawGateway...");
+  console.log("[6/13] Deploying ZKClawGateway...");
   const ZKClawGateway = await ethers.getContractFactory("ZKClawGateway");
   const gateway = await ZKClawGateway.deploy(verifierAddr, nfaAddr, validationAddr, oracleAddr);
   await gateway.waitForDeployment();
   const gatewayAddr = await gateway.getAddress();
   console.log("  ZKClawGateway:", gatewayAddr);
 
+  // 7. BatchVerifier
+  console.log("[7/13] Deploying BatchVerifier...");
+  const BatchVerifier = await ethers.getContractFactory("BatchVerifier");
+  const batchVerifier = await BatchVerifier.deploy(verifierAddr, gatewayAddr);
+  await batchVerifier.waitForDeployment();
+  const batchVerifierAddr = await batchVerifier.getAddress();
+  console.log("  BatchVerifier:", batchVerifierAddr);
+
   // ============================================
-  // Phase 2: Initialize Demo State
+  // Phase 2: Agent Infrastructure (4)
   // ============================================
-  console.log("\n--- Phase 2: Initialize Demo State ---\n");
+  console.log("\n--- Phase 2: Agent Infrastructure ---\n");
+
+  // 8. AgentPaymaster
+  console.log("[8/13] Deploying AgentPaymaster...");
+  const AgentPaymaster = await ethers.getContractFactory("AgentPaymaster");
+  const paymaster = await AgentPaymaster.deploy();
+  await paymaster.waitForDeployment();
+  const paymasterAddr = await paymaster.getAddress();
+  console.log("  AgentPaymaster:", paymasterAddr);
+
+  // 9. EntryPoint (ERC-4337 simplified)
+  console.log("[9/13] Deploying EntryPoint...");
+  const EntryPoint = await ethers.getContractFactory("EntryPoint");
+  const entryPoint = await EntryPoint.deploy();
+  await entryPoint.waitForDeployment();
+  const entryPointAddr = await entryPoint.getAddress();
+  console.log("  EntryPoint:", entryPointAddr);
+
+  // 10. ERC6551Registry (Token Bound Accounts)
+  console.log("[10/13] Deploying ERC6551Registry...");
+  const ERC6551Registry = await ethers.getContractFactory("ERC6551Registry");
+  const registry6551 = await ERC6551Registry.deploy();
+  await registry6551.waitForDeployment();
+  const registry6551Addr = await registry6551.getAddress();
+  console.log("  ERC6551Registry:", registry6551Addr);
+
+  // 11. ERC6551Account (TBA implementation)
+  console.log("[11/13] Deploying ERC6551Account...");
+  const ERC6551Account = await ethers.getContractFactory("ERC6551Account");
+  const account6551 = await ERC6551Account.deploy();
+  await account6551.waitForDeployment();
+  const account6551Addr = await account6551.getAddress();
+  console.log("  ERC6551Account:", account6551Addr);
+
+  // ============================================
+  // Phase 3: DePIN & Staking (2)
+  // ============================================
+  console.log("\n--- Phase 3: DePIN & Staking ---\n");
+
+  // 12. StakeSlash
+  console.log("[12/13] Deploying StakeSlash...");
+  const StakeSlash = await ethers.getContractFactory("StakeSlash");
+  const stakeSlash = await StakeSlash.deploy();
+  await stakeSlash.waitForDeployment();
+  const stakeSlashAddr = await stakeSlash.getAddress();
+  console.log("  StakeSlash:", stakeSlashAddr);
+
+  // 13. MultiStationConsensus
+  console.log("[13/13] Deploying MultiStationConsensus...");
+  const MultiStationConsensus = await ethers.getContractFactory("MultiStationConsensus");
+  const consensus = await MultiStationConsensus.deploy(oracleAddr);
+  await consensus.waitForDeployment();
+  const consensusAddr = await consensus.getAddress();
+  console.log("  MultiStationConsensus:", consensusAddr);
+
+  // ============================================
+  // Phase 4: Initialize Demo State
+  // ============================================
+  console.log("\n--- Phase 4: Initialize Demo State ---\n");
+
+  // Set gateway on NFA
+  console.log("[1/8] Setting NFA gateway...");
+  let tx = await nfa.setGateway(gatewayAddr);
+  await tx.wait();
+  console.log("  NFA gateway set to:", gatewayAddr);
 
   // Register weather station
-  console.log("[1/6] Registering DePIN weather station (stationId=1001)...");
-  let tx = await depinOracle.registerStation(1001, deployer.address);
+  console.log("[2/8] Registering DePIN weather station (stationId=1001)...");
+  tx = await depinOracle.registerStation(1001, deployer.address);
   await tx.wait();
   console.log("  Station 1001 registered, hardware key:", deployer.address);
 
   // Submit hardware-signed weather data
-  console.log("[2/6] Submitting hardware-signed weather data...");
+  console.log("[3/8] Submitting hardware-signed weather data...");
   const dataHash = ethers.solidityPackedKeccak256(
     ["uint256", "int256", "uint256", "uint256", "uint256", "uint256"],
     [1001, -800, 9800, 12000, 25000, 0]  // nonce=0 for first submission
@@ -97,7 +169,7 @@ async function main() {
   console.log("  Weather data submitted, signature verified:", isAuth);
 
   // Mint demo NFA agent (BAP-578 full metadata)
-  console.log("[3/6] Minting NFA agent (WeatherGuard-01)...");
+  console.log("[4/8] Minting NFA agent (WeatherGuard-01)...");
   tx = await nfa.mint({
     name: "WeatherGuard-01",
     persona: "DePIN Insurance Analyst -- Verifiable AI Agent",
@@ -110,19 +182,14 @@ async function main() {
   await tx.wait();
   console.log("  Agent minted: tokenId=0");
 
-  // Set gateway on NFA
-  console.log("[4/7] Setting NFA gateway...");
-  await nfa.setGateway(gatewayAddr);
-  console.log("  NFA gateway set to:", gatewayAddr);
-
   // Bind gateway as logic contract
-  console.log("[5/7] Binding ZKClawGateway as agent logic...");
+  console.log("[5/8] Binding ZKClawGateway as agent logic...");
   tx = await nfa.setLogicAddress(0, gatewayAddr);
   await tx.wait();
   console.log("  Gateway bound to agent 0");
 
   // Submit a demo off-chain verified inference
-  console.log("[6/7] Submitting demo inference (claim triggered)...");
+  console.log("[6/8] Submitting demo inference (claim triggered)...");
   // instances where index[5] > index[4] => decision = CLAIM
   const publicInstances = [100n, 200n, 300n, 400n, 500n, 600n];
   tx = await gateway.submitOffchainVerified(publicInstances, 0, 1001);
@@ -131,7 +198,7 @@ async function main() {
   console.log("  Inference submitted, reputation:", profile.reputationScore.toString());
 
   // Anchor to Greenfield
-  console.log("[7/7] Anchoring proof to Greenfield...");
+  console.log("[7/8] Anchoring proof to Greenfield...");
   const contentHash = ethers.keccak256(ethers.toUtf8Bytes(
     JSON.stringify({
       proof: "demo-proof-extreme-weather",
@@ -149,25 +216,39 @@ async function main() {
   await tx.wait();
   console.log("  Proof anchored to gnfd://zk-claw-bucket/proof-demo-001");
 
+  // Authorize gateway as slasher on StakeSlash
+  console.log("[8/8] Authorizing Gateway as slasher on StakeSlash...");
+  tx = await stakeSlash.authorizeSlasher(gatewayAddr);
+  await tx.wait();
+  console.log("  Gateway authorized as slasher");
+
   // ============================================
   // Summary
   // ============================================
   console.log("\n" + "=".repeat(60));
-  console.log("DEPLOYMENT COMPLETE");
+  console.log("DEPLOYMENT COMPLETE -- 13 contracts");
   console.log("=".repeat(60));
-  console.log(`  Network:                ${hre.network.name}`);
-  console.log(`  Halo2Verifier:          ${verifierAddr}`);
-  console.log(`  NFA (BAP-578):          ${nfaAddr}`);
-  console.log(`  ValidationRegistry:     ${validationAddr}`);
-  console.log(`  ReputationRegistry:     ${reputationAddr}`);
-  console.log(`  MockDePINOracle:        ${oracleAddr}`);
-  console.log(`  ZKClawGateway:          ${gatewayAddr}`);
-  console.log("---");
-  console.log(`  Demo Agent:             tokenId=0 (WeatherGuard-01)`);
-  console.log(`  Demo Station:           stationId=1001`);
-  console.log(`  Hardware Sig Verified:  ${isAuth}`);
-  console.log(`  Reputation Score:       ${profile.reputationScore}`);
-  console.log(`  Greenfield Anchored:    true`);
+  console.log("\n  Core:");
+  console.log(`    Halo2Verifier:          ${verifierAddr}`);
+  console.log(`    NFA (BAP-578):          ${nfaAddr}`);
+  console.log(`    ValidationRegistry:     ${validationAddr}`);
+  console.log(`    ReputationRegistry:     ${reputationAddr}`);
+  console.log(`    MockDePINOracle:        ${oracleAddr}`);
+  console.log(`    ZKClawGateway:          ${gatewayAddr}`);
+  console.log(`    BatchVerifier:          ${batchVerifierAddr}`);
+  console.log("\n  Agent Infrastructure:");
+  console.log(`    AgentPaymaster:         ${paymasterAddr}`);
+  console.log(`    EntryPoint:             ${entryPointAddr}`);
+  console.log(`    ERC6551Registry:        ${registry6551Addr}`);
+  console.log(`    ERC6551Account:         ${account6551Addr}`);
+  console.log("\n  DePIN & Staking:");
+  console.log(`    StakeSlash:             ${stakeSlashAddr}`);
+  console.log(`    MultiStationConsensus:  ${consensusAddr}`);
+  console.log("\n  Demo State:");
+  console.log(`    Demo Agent:             tokenId=0 (WeatherGuard-01)`);
+  console.log(`    Demo Station:           stationId=1001`);
+  console.log(`    Hardware Sig Verified:  ${isAuth}`);
+  console.log(`    Reputation Score:       ${profile.reputationScore}`);
   console.log("=".repeat(60));
 
   // Write addresses to file for frontend
@@ -178,6 +259,13 @@ async function main() {
     ReputationRegistry: reputationAddr,
     MockDePINOracle: oracleAddr,
     ZKClawGateway: gatewayAddr,
+    BatchVerifier: batchVerifierAddr,
+    AgentPaymaster: paymasterAddr,
+    EntryPoint: entryPointAddr,
+    ERC6551Registry: registry6551Addr,
+    ERC6551Account: account6551Addr,
+    StakeSlash: stakeSlashAddr,
+    MultiStationConsensus: consensusAddr,
     network: hre.network.name,
     chainId: (await ethers.provider.getNetwork()).chainId.toString(),
     deployer: deployer.address,
@@ -201,6 +289,13 @@ export const CONTRACTS = {
   ReputationRegistry: "${reputationAddr}",
   MockDePINOracle: "${oracleAddr}",
   ZKClawGateway: "${gatewayAddr}",
+  BatchVerifier: "${batchVerifierAddr}",
+  AgentPaymaster: "${paymasterAddr}",
+  EntryPoint: "${entryPointAddr}",
+  ERC6551Registry: "${registry6551Addr}",
+  ERC6551Account: "${account6551Addr}",
+  StakeSlash: "${stakeSlashAddr}",
+  MultiStationConsensus: "${consensusAddr}",
 } as const;
 
 export const IS_DEPLOYED = true;
