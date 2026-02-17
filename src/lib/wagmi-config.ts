@@ -1,21 +1,19 @@
-import { getDefaultConfig } from "@rainbow-me/rainbowkit";
-import { http } from "wagmi";
-import { bscTestnet } from "wagmi/chains";
+import { WagmiAdapter } from "@reown/appkit-adapter-wagmi";
+import { bscTestnet } from "@reown/appkit/networks";
 
 // Re-export from server-safe module
 export { CONTRACTS, IS_DEPLOYED } from "./contract-addresses";
 
-const projectId = process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID || "21fef48091f12692cad574a6f7753643";
-if (!process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID && typeof window !== "undefined") {
-  console.warn("NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID is not set, using default");
-}
+export const projectId =
+  process.env.NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID ||
+  "2d30e0534ed9410df96ea26937766c6a";
 
-export const config = getDefaultConfig({
-  appName: "ZK-Claw",
+export const networks = [bscTestnet];
+
+export const wagmiAdapter = new WagmiAdapter({
   projectId,
-  chains: [bscTestnet],
-  transports: {
-    [bscTestnet.id]: http("https://data-seed-prebsc-1-s1.bnbchain.org:8545/"),
-  },
+  networks,
   ssr: true,
 });
+
+export const config = wagmiAdapter.wagmiConfig;

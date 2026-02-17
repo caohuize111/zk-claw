@@ -1,28 +1,45 @@
 "use client";
 
-import "@rainbow-me/rainbowkit/styles.css";
+import { createAppKit } from "@reown/appkit/react";
+import { bscTestnet } from "@reown/appkit/networks";
 import { WagmiProvider } from "wagmi";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { RainbowKitProvider, darkTheme } from "@rainbow-me/rainbowkit";
-import { config } from "@/lib/wagmi-config";
+import { wagmiAdapter, projectId } from "@/lib/wagmi-config";
 import { ReactNode, useState } from "react";
+
+const metadata = {
+  name: "ZK-Claw",
+  description: "Verifiable Intelligence Gateway for AI Agents on BNB Chain",
+  url: "https://zk-claw.vercel.app",
+  icons: ["/favicon.ico"],
+};
+
+createAppKit({
+  adapters: [wagmiAdapter],
+  projectId,
+  networks: [bscTestnet],
+  metadata,
+  themeMode: "dark",
+  themeVariables: {
+    "--w3m-font-family": "'DM Sans', 'Inter', sans-serif",
+    "--w3m-accent": "hsl(158, 64%, 42%)",
+    "--w3m-color-mix": "hsl(24, 8%, 7%)",
+    "--w3m-color-mix-strength": 20,
+    "--w3m-border-radius-master": "2px",
+    "--w3m-z-index": 1000,
+  },
+  features: {
+    analytics: false,
+  },
+});
 
 export function Web3Provider({ children }: { children: ReactNode }) {
   const [queryClient] = useState(() => new QueryClient());
 
   return (
-    <WagmiProvider config={config}>
+    <WagmiProvider config={wagmiAdapter.wagmiConfig}>
       <QueryClientProvider client={queryClient}>
-        <RainbowKitProvider
-          theme={darkTheme({
-            accentColor: "hsl(188, 94%, 43%)",
-            accentColorForeground: "white",
-            borderRadius: "medium",
-            overlayBlur: "small",
-          })}
-        >
-          {children}
-        </RainbowKitProvider>
+        {children}
       </QueryClientProvider>
     </WagmiProvider>
   );

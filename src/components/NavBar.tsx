@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ConnectButton } from "@rainbow-me/rainbowkit";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, ShieldCheck, Home, Wallet, Layers, Bot } from "lucide-react";
+import { ShieldCheck, Home, Wallet, Layers, Bot } from "lucide-react";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: Home },
@@ -13,6 +12,45 @@ const NAV_ITEMS = [
   { href: "/paymaster", label: "Paymaster", icon: Wallet },
   { href: "/batch", label: "Batch", icon: Layers },
 ];
+
+function Logo() {
+  return (
+    <div className="relative w-9 h-9 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/30 flex items-center justify-center overflow-hidden group-hover:border-primary/50 transition-all duration-300">
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-transparent" />
+      <svg
+        width="20"
+        height="20"
+        viewBox="0 0 24 24"
+        fill="none"
+        className="relative z-10"
+      >
+        <path
+          d="M12 2L4 6v5c0 5.55 3.84 10.74 8 12 4.16-1.26 8-6.45 8-12V6L12 2z"
+          stroke="hsl(158, 64%, 42%)"
+          strokeWidth="1.5"
+          fill="hsl(158, 64%, 42%)"
+          fillOpacity="0.1"
+        />
+        <text
+          x="12"
+          y="14.5"
+          textAnchor="middle"
+          fontSize="8"
+          fontWeight="800"
+          fontFamily="monospace"
+          fill="hsl(158, 64%, 52%)"
+        >
+          ZK
+        </text>
+      </svg>
+      <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+    </div>
+  );
+}
+
+function WalletButton() {
+  return <appkit-button />;
+}
 
 export function NavBar() {
   const pathname = usePathname();
@@ -23,12 +61,15 @@ export function NavBar() {
         <div className="flex h-14 items-center justify-between">
           <div className="flex items-center gap-4 sm:gap-8">
             <Link href="/" className="flex items-center gap-2.5 cursor-pointer group">
-              <div className="relative w-8 h-8 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center transition-all duration-200 group-hover:bg-primary/15 group-hover:border-primary/50 group-hover:shadow-[0_0_12px_-4px_hsl(var(--primary)/0.3)]">
-                <span className="text-primary font-bold text-xs font-mono tracking-wider">ZK</span>
+              <Logo />
+              <div className="hidden sm:flex flex-col">
+                <span className="font-bold text-sm tracking-tight leading-none">
+                  ZK-Claw
+                </span>
+                <span className="text-[10px] text-muted-foreground leading-none mt-0.5 font-mono">
+                  Verifiable AI Gateway
+                </span>
               </div>
-              <span className="font-semibold text-base tracking-tight hidden sm:inline">
-                ZK-Claw
-              </span>
             </Link>
             <div className="flex items-center gap-0.5">
               {NAV_ITEMS.map((item) => {
@@ -54,7 +95,7 @@ export function NavBar() {
               })}
             </div>
           </div>
-          <ConnectButton showBalance={false} chainStatus="icon" />
+          <WalletButton />
         </div>
       </div>
     </nav>
