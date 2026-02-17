@@ -75,6 +75,9 @@ contract ZKClawGateway is ReentrancyGuard {
     mapping(uint256 => address) public claimPayoutAddresses;
     mapping(uint256 => uint256) public claimPayoutAmounts;
 
+    // BatchVerifier authorization (for aggregated reputation updates)
+    address public batchVerifierAddress;
+
     // ── Crypto-Bound Device Registry (trustless inline verification) ──
     mapping(uint256 => address) public boundDevices;   // stationId => device EOA
     mapping(uint256 => uint256) public deviceNonces;   // stationId => nonce (replay protection)
@@ -564,6 +567,20 @@ contract ZKClawGateway is ReentrancyGuard {
     function setVerifier(address _verifier) external onlyAdmin {
         verifier = IHalo2Verifier(_verifier);
         emit VerifierUpdated(_verifier);
+    }
+
+    function setBatchVerifier(address _batchVerifier) external onlyAdmin {
+        batchVerifierAddress = _batchVerifier;
+    }
+
+    /// @notice Batch increment reputation for aggregated off-chain proofs (Mode 3)
+    /// @dev Called by BatchVerifier.submitAggregatedRoot to bridge aggregated proofs
+    ///      into the economic model (NFA reputation + ERC-8004 validation).
+    function batchIncrementReputation(uint256[] calldata agentIds) external {
+        require(msg.sender == batchVerifierAddress || msg.sender == admin, "Not authorized");
+        for (uint256 i = 0; i < agentIds.length; i++) {
+            try nfa.incrementReputation(agentIds[i]) {} catch {}
+        }
     }
 
     function transferAdmin(address newAdmin) external onlyAdmin {

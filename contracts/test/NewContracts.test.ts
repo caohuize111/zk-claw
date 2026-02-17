@@ -708,6 +708,8 @@ describe("New Contracts", () => {
         await gateway.getAddress()
       );
       await batchVerifier.waitForDeployment();
+      // Authorize BatchVerifier on Gateway for batchIncrementReputation
+      await gateway.setBatchVerifier(await batchVerifier.getAddress());
 
       // Register station for aggregation tests
       await depinOracle.registerStation(401, stationSigner.address);
@@ -734,7 +736,7 @@ describe("New Contracts", () => {
       // Compute a simple merkle root (we don't need to match _computeMerkleRoot exactly for this test)
       const merkleRoot = ethers.keccak256(ethers.toUtf8Bytes("aggregated-root-1000"));
 
-      await batchVerifier.submitAggregatedRoot(merkleRoot, 1000, proofHashes);
+      await batchVerifier.submitAggregatedRoot(merkleRoot, 1000, proofHashes, [0, 0, 0]);
 
       const batch = await batchVerifier.getAggregatedBatch(0);
       assert.equal(batch.merkleRoot, merkleRoot);
@@ -749,7 +751,7 @@ describe("New Contracts", () => {
 
     it("should reject empty batch in submitAggregatedRoot", async () => {
       await assert.rejects(
-        batchVerifier.submitAggregatedRoot(ethers.ZeroHash, 0, []),
+        batchVerifier.submitAggregatedRoot(ethers.ZeroHash, 0, [], []),
         /Empty batch/
       );
     });

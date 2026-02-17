@@ -182,10 +182,12 @@ contract BatchVerifier {
     ///      can be verified later via verifyInclusion().
     ///      Use case: aggregator verifies 10,000 device proofs off-chain,
     ///      submits single root on-chain. Auditors verify individual proofs later.
+    ///      agentIds bridges aggregated proofs into the economic model (NFA reputation).
     function submitAggregatedRoot(
         bytes32 merkleRoot,
         uint256 proofCount,
-        bytes32[] calldata sampleProofHashes
+        bytes32[] calldata sampleProofHashes,
+        uint256[] calldata agentIds
     ) external onlyAdmin {
         require(proofCount > 0, "Empty batch");
 
@@ -207,6 +209,11 @@ contract BatchVerifier {
 
         totalBatchesProcessed++;
         totalProofsAggregated += proofCount;
+
+        // Bridge to economic model: update NFA reputation via Gateway
+        if (agentIds.length > 0) {
+            try gateway.batchIncrementReputation(agentIds) {} catch {}
+        }
 
         // Gas savings: entire batch cost ~50K vs proofCount * ~200K individual
         uint256 savedGas = proofCount * 200000;
