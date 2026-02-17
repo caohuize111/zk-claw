@@ -31,3 +31,4 @@ contracts/deployed-addresses.json
 # EZKL proving keys (per-run artifacts)
 zkml/artifacts_*/
 zkml/bench_logrows_*/
+.vercel
