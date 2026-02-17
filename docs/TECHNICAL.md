@@ -306,7 +306,7 @@ NEXT_PUBLIC_BSC_TESTNET_RPC=https://data-seed-prebsc-1-s1.bnbchain.org:8545
 ### Access
 
 - **Local**: http://localhost:3000
-- **Deployed**: [Vercel URL if deployed]
+- **Deployed**: https://zk-claw.vercel.app
 
 ### User Flow
 

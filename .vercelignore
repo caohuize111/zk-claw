@@ -1,0 +1,16 @@
+contracts/
+agent/
+prover-service/
+zkml/artifacts/pk.key
+zkml/artifacts/kzg.srs
+zkml/artifacts/model.compiled
+zkml/artifacts_backup_logrows15/
+zkml/artifacts_v2/
+zkml/model.onnx.data
+zkml/model_v2.onnx
+zkml/calldata.bytes
+.next/
+node_modules/
+.git/
+zk-claw-full-source.txt
+tsconfig.tsbuildinfo

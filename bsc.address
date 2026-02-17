@@ -81,7 +81,7 @@
       "description": "Multi-station consensus verification for DePIN data"
     }
   ],
-  "frontendUrl": "",
+  "frontendUrl": "https://zk-claw.vercel.app",
   "backendApi": "",
   "notes": "All contracts deployed on BSC Testnet (chainId: 97). Demo state initialized with 1 agent (WeatherGuard-01) and sample verification records."
 }
