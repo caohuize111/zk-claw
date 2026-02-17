@@ -10,6 +10,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 /// @dev Storage-based approach for hackathon clarity.
 contract ERC6551Account is IERC165, ReentrancyGuard {
     address public registry;
+    address public entryPoint;
     uint256 public chainId;
     address public tokenContract;
     uint256 public tokenId;
@@ -29,6 +30,12 @@ contract ERC6551Account is IERC165, ReentrancyGuard {
         _initialized = true;
     }
 
+    /// @notice Set the EntryPoint address for ERC-4337 account abstraction
+    function setEntryPoint(address _entryPoint) external {
+        require(msg.sender == owner(), "Not token owner");
+        entryPoint = _entryPoint;
+    }
+
     function owner() public view returns (address) {
         return IERC721(tokenContract).ownerOf(tokenId);
     }
@@ -36,7 +43,7 @@ contract ERC6551Account is IERC165, ReentrancyGuard {
     function executeCall(address to, uint256 value, bytes calldata data)
         external payable nonReentrant returns (bytes memory)
     {
-        require(msg.sender == owner(), "Not token owner");
+        require(msg.sender == owner() || msg.sender == entryPoint, "Not authorized");
         nonce++;
         (bool success, bytes memory result) = to.call{value: value}(data);
         require(success, "Call failed");

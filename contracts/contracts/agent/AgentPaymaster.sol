@@ -38,6 +38,8 @@ contract AgentPaymaster is ReentrancyGuard {
     uint256 constant GAS_OVERHEAD = 30000;
 
     /// @notice Execute a call on behalf of an approved agent, sponsoring gas
+    /// @dev Gas cost is reimbursed from the Paymaster's BNB balance to the caller (msg.sender).
+    ///      The agent calls this function and pays gas upfront, then gets refunded.
     function sponsoredCall(address target, bytes calldata data)
         external nonReentrant returns (bytes memory)
     {
@@ -49,6 +51,17 @@ contract AgentPaymaster is ReentrancyGuard {
         uint256 gasUsed = gasBefore - gasleft();
         uint256 gasCost = (gasUsed + GAS_OVERHEAD) * tx.gasprice;
         totalSponsored += gasCost;
+
+        // Reimburse gas cost to the agent from Paymaster treasury
+        if (address(this).balance >= gasCost) {
+            (bool refunded, ) = msg.sender.call{value: gasCost}("");
+            // If refund fails (e.g., agent is a contract that rejects BNB), continue without revert
+            if (!refunded) {
+                emit GasSponsored(msg.sender, target, gasUsed, 0);
+                return result;
+            }
+        }
+
         emit GasSponsored(msg.sender, target, gasUsed, gasCost);
         return result;
     }

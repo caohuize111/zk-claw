@@ -239,16 +239,21 @@ describe("ZK-Claw", () => {
       assert.equal(await depinOracle.isDataAuthentic(1001), true);
     });
 
-    it("should detect invalid signature (wrong signer)", async () => {
+    it("should reject invalid signature (wrong signer)", async () => {
       // Station 1001 nonce=1
       const dataHash = ethers.solidityPackedKeccak256(
         ["uint256", "int256", "uint256", "uint256", "uint256", "uint256"],
         [1001, 500, 5000, 3000, 0, 1]
       );
-      // Sign with wrong key (admin instead of stationSigner)
+      // Sign with wrong key (admin instead of stationSigner) -- now reverts
       const badSig = await admin.signMessage(ethers.getBytes(dataHash));
-      await depinOracle.submitWeatherData(1001, 500, 5000, 3000, 0, badSig);
-      assert.equal(await depinOracle.isDataAuthentic(1001), false);
+      await assert.rejects(
+        depinOracle.submitWeatherData(1001, 500, 5000, 3000, 0, badSig),
+        /Invalid hardware signature/
+      );
+      // Nonce not incremented (still 1) -- submit valid data to advance nonce for later tests
+      const validSig = await stationSigner.signMessage(ethers.getBytes(dataHash));
+      await depinOracle.submitWeatherData(1001, 500, 5000, 3000, 0, validSig);
     });
 
     it("should reject non-admin station registration", async () => {
@@ -494,18 +499,12 @@ describe("ZK-Claw", () => {
       );
     });
 
-    it("should revert when DePIN data is not authentic (wrong signature)", async () => {
-      // Register a new station, submit with wrong signer
+    it("should revert when DePIN data is not authentic (no data submitted)", async () => {
+      // Register a new station but DON'T submit any data
+      // Default: signatureVerified=false, timestamp=0 (stale) -> dataAuthentic=false
       await depinOracle.registerStation(5001, stationSigner.address);
-      // Station 5001 nonce=0, sign with admin (wrong key)
-      const dataHash = ethers.solidityPackedKeccak256(
-        ["uint256", "int256", "uint256", "uint256", "uint256", "uint256"],
-        [5001, -800, 9800, 12000, 25000, 0]
-      );
-      const badSig = await admin.signMessage(ethers.getBytes(dataHash));
-      await depinOracle.submitWeatherData(5001, -800, 9800, 12000, 25000, badSig);
 
-      const fakeProof = ethers.toUtf8Bytes("bad-sig-revert-test");
+      const fakeProof = ethers.toUtf8Bytes("no-data-revert-test");
       await assert.rejects(
         gateway.submitVerifiedInference(
           fakeProof,
@@ -957,7 +956,7 @@ describe("ZK-Claw", () => {
 
       await assert.rejects(
         tbaAccount.connect(user).executeCall(admin.address, 0, "0x"),
-        /Not token owner/
+        /Not authorized/
       );
     });
 
@@ -1050,7 +1049,9 @@ describe("ZK-Claw", () => {
       assert.ok(balAfter > balBefore);
 
       const paymasterBal = await paymaster.balance();
-      assert.equal(paymasterBal, ethers.parseEther("0.5"));
+      // Balance is slightly less than 0.5 due to gas reimbursements from sponsored calls
+      assert.ok(paymasterBal < ethers.parseEther("0.5"));
+      assert.ok(paymasterBal > ethers.parseEther("0.49"));
     });
 
     it("should reject non-admin operations", async () => {

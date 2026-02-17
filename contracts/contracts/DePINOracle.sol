@@ -97,12 +97,14 @@ contract DePINOracle {
         bytes32 dataHash = keccak256(abi.encodePacked(
             stationId, temperature, humidity, windSpeed, rainfall, stationNonces[stationId]
         ));
-        stationNonces[stationId]++;
 
-        // Verify hardware signature via ecrecover
+        // Verify hardware signature via ecrecover BEFORE modifying state
         bytes32 ethSignedHash = dataHash.toEthSignedMessageHash();
         address recovered = ECDSA.recover(ethSignedHash, signature);
-        bool sigValid = (recovered == stationAddresses[stationId]);
+        require(recovered == stationAddresses[stationId], "Invalid hardware signature");
+
+        // Only increment nonce after signature verification passes (prevents DoS via nonce poisoning)
+        stationNonces[stationId]++;
 
         latestData[stationId] = WeatherData({
             stationId: stationId,
@@ -112,11 +114,11 @@ contract DePINOracle {
             rainfall: rainfall,
             timestamp: block.timestamp,
             dataHash: dataHash,
-            signatureVerified: sigValid,
+            signatureVerified: true,
             recoveredSigner: recovered
         });
 
-        emit WeatherDataSubmitted(stationId, dataHash, block.timestamp, sigValid);
+        emit WeatherDataSubmitted(stationId, dataHash, block.timestamp, true);
     }
 
     /// @notice Check if a station's latest data has verified hardware signature

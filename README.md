@@ -373,11 +373,26 @@ zk-claw/
 | Consensus | Single station | Multi-station consensus (toleranceBps) | Weighted consensus with reputation |
 | Storage | On-chain only | BNB Greenfield anchoring | IPFS + Greenfield redundancy |
 
-## Known Limitations
+## Known Limitations & Engineering Trade-offs
 
-- **V1 normalization**: Performed outside the ZK circuit; on-chain cross-validation compensates but is not zero-knowledge itself. V2 model with in-circuit normalization is implemented but its verifier (71.6KB) exceeds the 24KB EIP-170 deployment limit -- production use requires split deployment or further circuit optimization
+### EIP-170 Contract Size vs In-Circuit Security
+
+This is a deliberate architectural trade-off we want to highlight:
+
+- **V1 (deployed, 13.1KB)**: Normalization is performed off-chain before the ZK circuit. On-chain cross-validation compensates by checking DePIN raw data against public instances (+/-3 quantization tolerance). This fits within the 24KB EIP-170 limit but the normalization step itself is not zero-knowledge.
+
+- **V2 (implemented, 71.6KB)**: We moved normalization **inside** the ZK circuit via ONNX graph surgery (`build_normalized_model.py`), eliminating the normalization spoofing attack vector entirely. Raw sensor data becomes the public input, directly verifiable against DePIN oracle. However, the in-circuit division operations (`(x - min) / (max - min)`) dramatically increase circuit complexity (higher logrows), producing a Halo2Verifier that exceeds the 24KB EIP-170 deployment limit at 71.6KB.
+
+**Production path forward:**
+1. **EIP-2535 Diamond Proxy** -- Split the verifier into multiple facets, each under 24KB, unified behind a single diamond contract
+2. **Proof Aggregation** -- Use recursive SNARKs (e.g., Halo2 accumulation) to compress multiple V2 proofs into a single V1-sized proof
+3. **Circuit Optimization** -- Reduce logrows by replacing division with multiplication-based normalization (`x * scale + offset`) and fixed-point arithmetic
+
+We chose to ship V1 for the demo (functional and deployable) while implementing V2 to demonstrate the full security model. Both versions are included in the repository.
+
+### Other Limitations
+
 - TEE/Secure Enclave is simulated with EOA keys (production requires real hardware integration)
-- Halo2Verifier V1 uses logrows=15 (13.1KB, within 24KB limit); V2 needs higher logrows due to normalization ops
 - AgentPaymaster uses a simplified `sponsoredCall` pattern rather than full ERC-4337 EntryPoint integration (sufficient for BSC testnet demo)
 - StakeSlash is wired for manual governance -- automatic slashing triggered by Gateway verification failures is planned for V3
 - BNB Greenfield upload is a placeholder for the hackathon; on-chain `anchorToGreenField` records URIs but actual object storage integration is future work

@@ -104,21 +104,25 @@ describe("E2E: Full Chain Flow", () => {
       assert.equal(data.signatureVerified, true);
     });
 
-    it("should record bad signature as unverified (no revert)", async () => {
-      // DePINOracle does NOT revert on bad signature, it stores signatureVerified=false
+    it("should reject bad signature (reverts on invalid hardware sig)", async () => {
+      // DePINOracle now reverts on bad signature, preventing data poisoning
       const dataHash = ethers.solidityPackedKeccak256(
         ["uint256", "int256", "uint256", "uint256", "uint256", "uint256"],
-        [1001, 3000, 7000, 2000, 100, 1] // nonce=1 (auto-incremented)
+        [1001, 3000, 7000, 2000, 100, 1] // nonce=1
       );
       // attacker signs instead of stationSigner
       const badSig = await attacker.signMessage(ethers.getBytes(dataHash));
-      await depinOracle.submitWeatherData(1001, 3000, 7000, 2000, 100, badSig);
-      assert.equal(await depinOracle.isDataAuthentic(1001), false);
+      await assert.rejects(
+        depinOracle.submitWeatherData(1001, 3000, 7000, 2000, 100, badSig),
+        /Invalid hardware signature/
+      );
+      // Nonce not incremented (still 1), previous authentic data preserved
+      assert.equal(await depinOracle.isDataAuthentic(1001), true);
 
-      // Re-submit valid data to restore authentic state for later tests (nonce=2)
+      // Re-submit valid data with nonce=1 (unchanged after revert) for later tests
       const dataHash2 = ethers.solidityPackedKeccak256(
         ["uint256", "int256", "uint256", "uint256", "uint256", "uint256"],
-        [1001, 2500, 6500, 1500, 0, 2]
+        [1001, 2500, 6500, 1500, 0, 1]
       );
       const validSig = await stationSigner.signMessage(ethers.getBytes(dataHash2));
       await depinOracle.submitWeatherData(1001, 2500, 6500, 1500, 0, validSig);

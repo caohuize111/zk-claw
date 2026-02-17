@@ -86,9 +86,10 @@ contract MultiStationConsensus {
         require(g.active, "Group not active");
 
         uint256 n = g.stationIds.length;
-        StationReadings memory readings = _readStations(g.stationIds, n);
-        Averages memory avg = _computeAverages(readings, n);
-        uint256 agreeing = _countAgreeing(readings, avg, g.toleranceBps, n);
+        (StationReadings memory readings, uint256 validCount) = _readStations(g.stationIds, n);
+        require(validCount > 0, "No valid station data");
+        Averages memory avg = _computeAverages(readings, validCount);
+        uint256 agreeing = _countAgreeing(readings, avg, g.toleranceBps, validCount);
         bool reached = agreeing >= g.threshold;
 
         ConsensusResult memory result = ConsensusResult({
@@ -116,39 +117,43 @@ contract MultiStationConsensus {
 
     // --- Internal helpers (split to avoid stack-too-deep) ---
 
-    function _readStations(uint256[] storage stationIds, uint256 n) internal view returns (StationReadings memory readings) {
+    function _readStations(uint256[] storage stationIds, uint256 n) internal view returns (StationReadings memory readings, uint256 validCount) {
         readings.temps = new int256[](n);
         readings.humids = new uint256[](n);
         readings.winds = new uint256[](n);
         readings.rains = new uint256[](n);
 
+        uint256 writeIdx = 0;
         for (uint256 i = 0; i < n; i++) {
             try oracle.getLatestData(stationIds[i]) returns (DePINOracle.WeatherData memory d) {
-                readings.temps[i] = d.temperature;
-                readings.humids[i] = d.humidity;
-                readings.winds[i] = d.windSpeed;
-                readings.rains[i] = d.rainfall;
+                readings.temps[writeIdx] = d.temperature;
+                readings.humids[writeIdx] = d.humidity;
+                readings.winds[writeIdx] = d.windSpeed;
+                readings.rains[writeIdx] = d.rainfall;
+                writeIdx++;
             } catch {
-                // Skip unregistered or failing stations; leave readings as zero defaults
+                // Skip unregistered or failing stations
             }
         }
+        validCount = writeIdx;
     }
 
-    function _computeAverages(StationReadings memory r, uint256 n) internal pure returns (Averages memory avg) {
+    function _computeAverages(StationReadings memory r, uint256 validCount) internal pure returns (Averages memory avg) {
+        require(validCount > 0, "No valid stations");
         int256 sumTemp;
         uint256 sumHumid;
         uint256 sumWind;
         uint256 sumRain;
-        for (uint256 i = 0; i < n; i++) {
+        for (uint256 i = 0; i < validCount; i++) {
             sumTemp += r.temps[i];
             sumHumid += r.humids[i];
             sumWind += r.winds[i];
             sumRain += r.rains[i];
         }
-        avg.avgTemp = sumTemp / int256(n);
-        avg.avgHumid = sumHumid / n;
-        avg.avgWind = sumWind / n;
-        avg.avgRain = sumRain / n;
+        avg.avgTemp = sumTemp / int256(validCount);
+        avg.avgHumid = sumHumid / validCount;
+        avg.avgWind = sumWind / validCount;
+        avg.avgRain = sumRain / validCount;
     }
 
     function _countAgreeing(StationReadings memory r, Averages memory avg, uint256 toleranceBps, uint256 n) internal pure returns (uint256 agreeing) {

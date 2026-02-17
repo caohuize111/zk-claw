@@ -374,8 +374,10 @@ contract ZKClawGateway is ReentrancyGuard {
             if (denominator == 0) return false;
             int256 expected = numerator / denominator;
 
-            // Public instance for input is a small positive number (not BN254 wrapped)
-            int256 actual = int256(publicInstances[i]);
+            // Handle BN254 field wrapping: negative normalized values appear as p - |value|
+            int256 actual = publicInstances[i] > HALF_P
+                ? int256(publicInstances[i]) - int256(BN254_P)
+                : int256(publicInstances[i]);
 
             int256 diff = expected - actual;
             if (diff < 0) diff = -diff;
