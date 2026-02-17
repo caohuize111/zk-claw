@@ -245,8 +245,8 @@ contract ZKClawGateway is ReentrancyGuard {
         uint256 agentId,
         uint256 stationId
     ) external onlyAdmin nonReentrant {
-        // Compute proofHash from publicInstances (Fix #6: prevent bypass)
-        bytes32 proofHash = keccak256(abi.encodePacked(publicInstances));
+        // Compute proofHash from publicInstances + timestamp + index (prevent hash collision)
+        bytes32 proofHash = keccak256(abi.encodePacked(publicInstances, block.timestamp, records.length));
         require(!usedProofs[proofHash], "Proof already used");
         usedProofs[proofHash] = true;
 

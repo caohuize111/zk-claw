@@ -23,7 +23,8 @@ function fieldToSigned(x: bigint): bigint {
 
 // Convert EZKL little-endian hex instance to big-endian BigInt
 function leToBigInt(leHex: string): bigint {
-  const bytes = leHex.match(/.{2}/g) || [];
+  const clean = leHex.replace(/^0x/i, "");
+  const bytes = clean.match(/.{2}/g) || [];
   const beHex = bytes.reverse().join("");
   return BigInt("0x" + beHex);
 }
@@ -136,7 +137,15 @@ async function handleDemoProve(
 ) {
   // Read pre-generated proof from EZKL pipeline
   const proofPath = path.join(ARTIFACTS_DIR, "proof.json");
-  const proofData = JSON.parse(await readFile(proofPath, "utf-8"));
+  let proofData;
+  try {
+    proofData = JSON.parse(await readFile(proofPath, "utf-8"));
+  } catch {
+    return NextResponse.json(
+      { error: "Demo artifacts not found. Set PROVER_SERVICE_URL for production." },
+      { status: 503 }
+    );
+  }
 
   const instances = proofData.instances?.[0] || [];
   const hexProof: string = proofData.hex_proof || "";

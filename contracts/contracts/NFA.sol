@@ -241,14 +241,12 @@ contract NFA is ERC721Enumerable, ReentrancyGuard, Pausable, Ownable, IBAP578 {
     // ZK-CLAW: REPUTATION & PREDICTION PROFILE
     // ═══════════════════════════════════════════════════════════════
 
-    /// @notice Increment reputation after a verified ZK inference (logic contract or gateway)
+    /// @notice Increment reputation after a verified ZK inference (gateway only)
     /// @dev Increments both totalPredictions and correctPredictions, since a verified
     ///      ZK inference is by definition a correct prediction.
+    ///      Only gateway can call this to prevent reputation inflation by logic contracts.
     function incrementReputation(uint256 tokenId) external {
-        require(
-            msg.sender == _logicAddresses[tokenId] || msg.sender == gatewayAddress,
-            "Not authorized"
-        );
+        require(msg.sender == gatewayAddress, "Only gateway");
         PredictionProfile storage p = _profiles[tokenId];
         p.totalPredictions += 1;
         p.correctPredictions += 1;
@@ -259,12 +257,9 @@ contract NFA is ERC721Enumerable, ReentrancyGuard, Pausable, Ownable, IBAP578 {
         emit ReputationUpdated(tokenId, p.reputationScore);
     }
 
-    /// @notice Record a correct prediction (logic contract or gateway)
+    /// @notice Record a correct prediction (gateway only)
     function recordCorrectPrediction(uint256 tokenId) external {
-        require(
-            msg.sender == _logicAddresses[tokenId] || msg.sender == gatewayAddress,
-            "Not authorized"
-        );
+        require(msg.sender == gatewayAddress, "Only gateway");
         PredictionProfile storage p = _profiles[tokenId];
         require(p.correctPredictions < p.totalPredictions, "Cannot exceed total predictions");
         p.correctPredictions += 1;

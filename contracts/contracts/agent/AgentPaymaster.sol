@@ -36,10 +36,12 @@ contract AgentPaymaster is ReentrancyGuard {
     }
 
     uint256 constant GAS_OVERHEAD = 30000;
+    uint256 public maxGasPrice = 50 gwei; // Cap to prevent gas drain attacks
 
     /// @notice Execute a call on behalf of an approved agent, sponsoring gas
     /// @dev Gas cost is reimbursed from the Paymaster's BNB balance to the caller (msg.sender).
     ///      The agent calls this function and pays gas upfront, then gets refunded.
+    ///      Gas price is capped at maxGasPrice to prevent drain attacks.
     function sponsoredCall(address target, bytes calldata data)
         external nonReentrant returns (bytes memory)
     {
@@ -49,7 +51,8 @@ contract AgentPaymaster is ReentrancyGuard {
         (bool success, bytes memory result) = target.call(data);
         require(success, "Sponsored call failed");
         uint256 gasUsed = gasBefore - gasleft();
-        uint256 gasCost = (gasUsed + GAS_OVERHEAD) * tx.gasprice;
+        uint256 effectiveGasPrice = tx.gasprice < maxGasPrice ? tx.gasprice : maxGasPrice;
+        uint256 gasCost = (gasUsed + GAS_OVERHEAD) * effectiveGasPrice;
         totalSponsored += gasCost;
 
         // Reimburse gas cost to the agent from Paymaster treasury
@@ -64,6 +67,11 @@ contract AgentPaymaster is ReentrancyGuard {
 
         emit GasSponsored(msg.sender, target, gasUsed, gasCost);
         return result;
+    }
+
+    function setMaxGasPrice(uint256 _maxGasPrice) external onlyAdmin {
+        require(_maxGasPrice > 0, "Max gas price must be > 0");
+        maxGasPrice = _maxGasPrice;
     }
 
     function withdraw(uint256 amount) external onlyAdmin {

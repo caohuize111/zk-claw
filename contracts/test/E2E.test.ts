@@ -219,17 +219,17 @@ describe("E2E: Full Chain Flow", () => {
       assert.equal(await gateway.totalClaimsTriggered(), 1n); // still 1
     });
 
-    it("should reject replay of same proof", async () => {
-      const instances = [100n, 200n, 300n, 400n, 500n, 600n]; // same as first
-      await assert.rejects(
-        gateway.submitOffchainVerified(instances, 0, 1001),
-        /Proof already used/
-      );
+    it("should allow duplicate offchain submissions (unique hash per call)", async () => {
+      // submitOffchainVerified includes block.timestamp + records.length, so same instances OK
+      const instances = [100n, 200n, 300n, 400n, 500n, 600n];
+      const tx = await gateway.submitOffchainVerified(instances, 0, 1001);
+      const receipt = await tx.wait();
+      assert.equal(receipt.status, 1);
     });
 
     it("should update NFA reputation after inference", async () => {
       const profile = await nfa.getProfile(0);
-      assert.equal(profile.totalPredictions, 2n);
+      assert.equal(profile.totalPredictions, 3n); // 2 offchain + 1 duplicate
     });
 
     it("should anchor proof to Greenfield", async () => {

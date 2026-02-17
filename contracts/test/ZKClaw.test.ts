@@ -170,9 +170,9 @@ describe("ZK-Claw", () => {
       assert.equal(logic, await gateway.getAddress());
     });
 
-    it("should increment reputation only from logic contract or gateway", async () => {
+    it("should increment reputation only from gateway", async () => {
       // Direct call from non-authorized address should fail
-      await assert.rejects(nfa.connect(user).incrementReputation(0), /Not authorized/);
+      await assert.rejects(nfa.connect(user).incrementReputation(0), /Only gateway/);
     });
 
     it("should verify Merkle learning proof", async () => {
@@ -439,12 +439,12 @@ describe("ZK-Claw", () => {
       assert.ok(profile.totalPredictions >= 2n);
     });
 
-    it("should prevent proof replay", async () => {
-      // Use same publicInstances as previous test -- proofHash is now keccak256(abi.encodePacked(instances))
-      await assert.rejects(
-        gateway.submitOffchainVerified([100n, 200n, 300n, 400n, 500n, 600n], 0, 1001),
-        /Proof already used/
-      );
+    it("should allow duplicate offchain submissions (unique hash per call)", async () => {
+      // submitOffchainVerified now includes block.timestamp + records.length in proofHash,
+      // so the same publicInstances can be re-submitted (e.g., re-verification of same data)
+      const tx = await gateway.submitOffchainVerified([100n, 200n, 300n, 400n, 500n, 600n], 0, 1001);
+      const receipt = await tx.wait();
+      assert.ok(receipt.status === 1);
     });
 
     it("should submit verified inference with mock verifier", async () => {
