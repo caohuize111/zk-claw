@@ -76,7 +76,7 @@ AI agents managing on-chain assets are opaque black boxes. Users have no way to 
 | `NFA` (BAP-578) | Non-Fungible Agent with lifecycle management, BNB funding, ERC-6551 TBA auto-creation, reputation tracking, Merkle-verified learning |
 | `Halo2Verifier` | EZKL-generated on-chain ZK proof verifier (Halo2 KZG, logrows=15) |
 | `Halo2VerifierV2` | V2 verifier for in-circuit normalized model (raw sensor inputs as public inputs) |
-| `MockDePINOracle` | Hardware signature verification via ECDSA, device registry, nonce-based replay protection |
+| `DePINOracle` | Hardware signature verification via ECDSA, device registry, nonce-based replay protection |
 | `ValidationRegistry` | ERC-8004 pull-based validation: request/response with monotonic scoring |
 | `ReputationRegistry` | ERC-8004 push-based reputation: feedback, revocation, WAD-normalized aggregation |
 
@@ -96,7 +96,7 @@ AI agents managing on-chain assets are opaque black boxes. Users have no way to 
 | MockVerifier | `0x319729205CfBFd9CD1e8130Ed9D342542e310386` |
 | MockNFA | `0x9B83Bb788B4f96cA8c377EAFC5610502140214d1` |
 | MockValidationRegistry | `0x7f54dA182693394Ff0Bf77479e6d7b9003cf8f25` |
-| MockDePINOracle | `0xed7B5A8fc0249BdfB70363C083Ea828976eDFe89` |
+| DePINOracle | `0xed7B5A8fc0249BdfB70363C083Ea828976eDFe89` |
 | ZKClawGateway | `0xae765e473f5549607093B1685e3199Bd6f0AD058` |
 
 ## ZKML Pipeline
@@ -194,7 +194,7 @@ zk-claw/
     contracts/
       ZKClawGateway.sol         # Core gateway: dual verification hard gate + recording
       NFA.sol                   # BAP-578 NFA + ERC-6551 TBA auto-creation
-      MockDePINOracle.sol       # DePIN hardware signature oracle + nonce replay protection
+      DePINOracle.sol       # DePIN hardware signature oracle + nonce replay protection
       BatchVerifier.sol         # Proof aggregation: batch verify + batch submit
       ValidationRegistry.sol    # ERC-8004 validation registry
       ReputationRegistry.sol    # ERC-8004 reputation registry

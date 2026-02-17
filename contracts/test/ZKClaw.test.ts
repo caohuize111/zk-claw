@@ -51,9 +51,9 @@ describe("ZK-Claw", () => {
     reputationRegistry = await ReputationRegistry.deploy(await nfa.getAddress());
     await reputationRegistry.waitForDeployment();
 
-    // Deploy MockDePINOracle
-    const MockDePINOracle = await ethers.getContractFactory("MockDePINOracle");
-    depinOracle = await MockDePINOracle.deploy();
+    // Deploy DePINOracle
+    const DePINOracle = await ethers.getContractFactory("DePINOracle");
+    depinOracle = await DePINOracle.deploy();
     await depinOracle.waitForDeployment();
 
     // Deploy ZKClawGateway
@@ -215,10 +215,10 @@ describe("ZK-Claw", () => {
   });
 
   // ═══════════════════════════════════════════════════════════════
-  // MockDePINOracle - Hardware Signature Verification
+  // DePINOracle - Hardware Signature Verification
   // ═══════════════════════════════════════════════════════════════
 
-  describe("MockDePINOracle - Hardware Signature Verification", () => {
+  describe("DePINOracle - Hardware Signature Verification", () => {
     it("should register a station with hardware public key", async () => {
       assert.equal(await depinOracle.registeredStations(1001), true);
       assert.equal(await depinOracle.stationAddresses(1001), stationSigner.address);

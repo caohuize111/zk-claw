@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.24;
 
-import "../MockDePINOracle.sol";
+import "../DePINOracle.sol";
 
 /// @title MultiStationConsensus - M-of-N multi-station consensus for DePIN weather data
 /// @notice Aggregates weather data from multiple stations and checks if enough stations
@@ -40,7 +40,7 @@ contract MultiStationConsensus {
         uint256 avgRain;
     }
 
-    MockDePINOracle public oracle;
+    DePINOracle public oracle;
     address public admin;
 
     mapping(uint256 => ConsensusGroup) public groups;
@@ -57,7 +57,7 @@ contract MultiStationConsensus {
     }
 
     constructor(address _oracle) {
-        oracle = MockDePINOracle(_oracle);
+        oracle = DePINOracle(_oracle);
         admin = msg.sender;
     }
 
@@ -123,7 +123,7 @@ contract MultiStationConsensus {
         readings.rains = new uint256[](n);
 
         for (uint256 i = 0; i < n; i++) {
-            MockDePINOracle.WeatherData memory d = oracle.getLatestData(stationIds[i]);
+            DePINOracle.WeatherData memory d = oracle.getLatestData(stationIds[i]);
             readings.temps[i] = d.temperature;
             readings.humids[i] = d.humidity;
             readings.winds[i] = d.windSpeed;

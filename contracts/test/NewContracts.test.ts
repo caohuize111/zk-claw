@@ -46,9 +46,9 @@ describe("New Contracts", () => {
     validationRegistry = await ValidationRegistry.deploy(await nfa.getAddress());
     await validationRegistry.waitForDeployment();
 
-    // Deploy MockDePINOracle
-    const MockDePINOracle = await ethers.getContractFactory("MockDePINOracle");
-    depinOracle = await MockDePINOracle.deploy();
+    // Deploy DePINOracle
+    const DePINOracle = await ethers.getContractFactory("DePINOracle");
+    depinOracle = await DePINOracle.deploy();
     await depinOracle.waitForDeployment();
 
     // Deploy ZKClawGateway

@@ -57,13 +57,13 @@ async function main() {
   const reputationAddr = await reputationRegistry.getAddress();
   console.log("  ReputationRegistry:", reputationAddr);
 
-  // 5. MockDePINOracle (Hardware Signature Verification)
-  console.log("[5/13] Deploying MockDePINOracle...");
-  const MockDePINOracle = await ethers.getContractFactory("MockDePINOracle");
-  const depinOracle = await MockDePINOracle.deploy();
+  // 5. DePINOracle (Hardware Signature Verification)
+  console.log("[5/13] Deploying DePINOracle...");
+  const DePINOracle = await ethers.getContractFactory("DePINOracle");
+  const depinOracle = await DePINOracle.deploy();
   await depinOracle.waitForDeployment();
   const oracleAddr = await depinOracle.getAddress();
-  console.log("  MockDePINOracle:", oracleAddr);
+  console.log("  DePINOracle:", oracleAddr);
 
   // 6. ZKClawGateway
   console.log("[6/13] Deploying ZKClawGateway...");
@@ -233,7 +233,7 @@ async function main() {
   console.log(`    NFA (BAP-578):          ${nfaAddr}`);
   console.log(`    ValidationRegistry:     ${validationAddr}`);
   console.log(`    ReputationRegistry:     ${reputationAddr}`);
-  console.log(`    MockDePINOracle:        ${oracleAddr}`);
+  console.log(`    DePINOracle:        ${oracleAddr}`);
   console.log(`    ZKClawGateway:          ${gatewayAddr}`);
   console.log(`    BatchVerifier:          ${batchVerifierAddr}`);
   console.log("\n  Agent Infrastructure:");
@@ -257,7 +257,7 @@ async function main() {
     NFA: nfaAddr,
     ValidationRegistry: validationAddr,
     ReputationRegistry: reputationAddr,
-    MockDePINOracle: oracleAddr,
+    DePINOracle: oracleAddr,
     ZKClawGateway: gatewayAddr,
     BatchVerifier: batchVerifierAddr,
     AgentPaymaster: paymasterAddr,
@@ -287,7 +287,7 @@ export const CONTRACTS = {
   NFA: "${nfaAddr}",
   ValidationRegistry: "${validationAddr}",
   ReputationRegistry: "${reputationAddr}",
-  MockDePINOracle: "${oracleAddr}",
+  DePINOracle: "${oracleAddr}",
   ZKClawGateway: "${gatewayAddr}",
   BatchVerifier: "${batchVerifierAddr}",
   AgentPaymaster: "${paymasterAddr}",

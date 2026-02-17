@@ -4,12 +4,11 @@ pragma solidity ^0.8.24;
 import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 
-/// @title MockDePINOracle - DePIN Weather Station with Hardware Signature Verification
-/// @notice Simulates TEE-attested hardware sensors: each station has a bound public key,
+/// @title DePINOracle - DePIN Weather Station with Hardware Signature Verification
+/// @notice TEE-attested hardware sensors: each station has a bound public key,
 ///         and all submitted data must be signed by that key (ecrecover verification).
 /// @dev In production, the private key lives in the sensor's Secure Element / TEE.
-///      Here we simulate with EOA keys -- the verification logic is identical.
-contract MockDePINOracle {
+contract DePINOracle {
     using ECDSA for bytes32;
     using MessageHashUtils for bytes32;
 
