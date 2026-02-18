@@ -24,7 +24,7 @@ import {
   Clock,
 } from "lucide-react";
 
-type Step = "input" | "proving" | "complete";
+type Step = "input" | "proving" | "submitting" | "complete";
 
 interface WeatherInput {
   temperature: number;
@@ -46,7 +46,8 @@ interface ProofResult {
 
 const STEPS = [
   { key: "input", label: "DePIN Input", icon: CloudRain },
-  { key: "proving", label: "5-Layer Pipeline", icon: Cpu },
+  { key: "proving", label: "ZKML Proof", icon: Cpu },
+  { key: "submitting", label: "Chain Submit", icon: Send },
   { key: "complete", label: "Verified", icon: CheckCircle2 },
 ] as const;
 
@@ -117,10 +118,6 @@ export default function VerifyPage() {
   };
 
   const handleProve = async () => {
-    if (!isConnected) {
-      setError("Please connect your wallet first.");
-      return;
-    }
     setStep("proving");
     setError(null);
     setPipelineLayer(1);
@@ -151,50 +148,41 @@ export default function VerifyPage() {
       const data = await res.json();
       recordLayerTime();
       setResult(data);
-
-      // Layer 3: Agent Assembly (transaction packaging)
-      setPipelineLayer(3);
-      await new Promise((resolve) => setTimeout(resolve, 800));
-      recordLayerTime();
-
-      // Layer 4: On-Chain Verify (submit tx)
-      setPipelineLayer(4);
-      await new Promise<void>((resolve, reject) => {
-        writeContract(
-          {
-            address: CONTRACTS.ZKClawGateway as `0x${string}`,
-            abi: GATEWAY_ABI,
-            functionName: "submitOffchainVerified",
-            args: [
-              data.publicInstances.map((x: string) => leHexToBigInt(x)),
-              BigInt(agentId),
-              BigInt(weather.stationId),
-            ],
-          },
-          {
-            onSuccess: (hash) => {
-              setTxHash(hash);
-              resolve();
-            },
-            onError: (err) => {
-              reject(new Error(`Chain submission failed: ${err.message}`));
-            },
-          }
-        );
-      });
-      recordLayerTime();
-
-      // Layer 5: Settlement (record + reputation)
-      setPipelineLayer(5);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      recordLayerTime();
-
-      setStep("complete");
+      setStep("submitting");
     } catch (e: any) {
       setError(e.message);
       setStep("input");
       setPipelineLayer(0);
     }
+  };
+
+  const handleSubmitOnChain = async () => {
+    if (!result || !isConnected) return;
+
+    setPipelineLayer(3);
+    layerStartRef.current = Date.now();
+
+    writeContract(
+      {
+        address: CONTRACTS.ZKClawGateway as `0x${string}`,
+        abi: GATEWAY_ABI,
+        functionName: "submitOffchainVerified",
+        args: [
+          result.publicInstances.map((x: string) => leHexToBigInt(x)),
+          BigInt(agentId),
+          BigInt(weather.stationId),
+        ],
+      },
+      {
+        onSuccess: (hash) => {
+          setTxHash(hash);
+          setStep("complete");
+        },
+        onError: (err) => {
+          setError(`Chain submission failed: ${err.message}`);
+        },
+      }
+    );
   };
 
   // Convert EZKL little-endian hex to big-endian BigInt (browser-safe, no Buffer)
@@ -567,6 +555,89 @@ export default function VerifyPage() {
           </div>
         )}
 
+
+        {/* ==============================================================
+            Step 3 -- Chain Submit (proof result + submit button)
+           ============================================================== */}
+        {step === "submitting" && result && (
+          <div className="space-y-6">
+            {/* Proof Result Card */}
+            <div className="rounded-xl border border-border bg-card overflow-hidden">
+              <div className="p-6 text-center">
+                <div className="text-primary text-xl font-bold mb-1">ZK Proof Generated</div>
+                <div className="text-muted-foreground text-sm">
+                  Proof verified locally. Ready to submit on-chain.
+                </div>
+              </div>
+              <div className="border-t border-border/40" />
+              <div className="grid sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-border/40">
+                <div className="p-5">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Decision</div>
+                  <div className={`text-2xl font-bold font-mono ${result.decision === "CLAIM" ? "text-amber-400" : "text-primary"}`}>
+                    {result.decision}
+                  </div>
+                </div>
+                <div className="p-5">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Proof Size</div>
+                  <div className="text-2xl font-bold font-mono text-foreground">
+                    {result.proofSize}
+                    <span className="text-sm text-muted-foreground ml-1">bytes</span>
+                  </div>
+                </div>
+                <div className="p-5">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Verify Time</div>
+                  <div className="text-2xl font-bold font-mono text-foreground">
+                    {result.verifyTime}
+                    <span className="text-sm text-muted-foreground ml-1">ms</span>
+                  </div>
+                </div>
+                <div className="p-5">
+                  <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Proof Hash</div>
+                  <div className="text-sm font-mono text-muted-foreground break-all leading-relaxed mt-1">
+                    {result.proofHash}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Submit or Connect Wallet */}
+            {isConnected ? (
+              <button
+                onClick={handleSubmitOnChain}
+                disabled={isWriting || isConfirming}
+                className="
+                  w-full py-3.5 rounded-xl font-semibold text-sm
+                  bg-primary text-white cursor-pointer
+                  hover:bg-primary active:bg-primary/80
+                  transition-all duration-200
+                  flex items-center justify-center gap-2
+                  disabled:opacity-40 disabled:cursor-not-allowed
+                "
+              >
+                {(isWriting || isConfirming) && <Loader2 className="w-4 h-4 animate-spin" />}
+                {!isWriting && !isConfirming && <Send className="w-4 h-4" />}
+                {isWriting ? "Signing Transaction..." : isConfirming ? "Confirming..." : "Submit to ZK-ClawGateway"}
+              </button>
+            ) : (
+              <div className="p-4 rounded-xl border border-amber-500/30 bg-amber-500/5 text-center">
+                <div className="text-sm text-amber-400 font-medium">
+                  Connect wallet to submit on-chain. Proof is valid -- you can also record it manually.
+                </div>
+              </div>
+            )}
+
+            {/* Skip Link */}
+            <button
+              onClick={() => setStep("complete")}
+              className="
+                w-full py-2 text-sm text-muted-foreground cursor-pointer
+                hover:text-foreground transition-colors duration-200
+              "
+            >
+              Skip chain submission (view results only)
+            </button>
+          </div>
+        )}
 
         {/* ==============================================================
             Step 4 -- Complete
