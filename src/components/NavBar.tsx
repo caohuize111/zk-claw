@@ -4,6 +4,9 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { ShieldCheck, Home, Wallet, Layers, Bot } from "lucide-react";
+import { useAppKit } from "@reown/appkit/react";
+import { useAccount } from "wagmi";
+import { useState, useEffect } from "react";
 
 const NAV_ITEMS = [
   { href: "/", label: "Home", icon: Home },
@@ -49,7 +52,24 @@ function Logo() {
 }
 
 function WalletButton() {
-  return <appkit-button />;
+  const { open } = useAppKit();
+  const { address, isConnected } = useAccount();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
+
+  if (!mounted) return null;
+
+  return (
+    <button
+      onClick={() => open()}
+      className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-primary hover:bg-primary/90 text-primary-foreground"
+    >
+      {isConnected && address
+        ? `${address.slice(0, 6)}...${address.slice(-4)}`
+        : "Connect Wallet"}
+    </button>
+  );
 }
 
 export function NavBar() {
