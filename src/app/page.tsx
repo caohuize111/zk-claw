@@ -69,7 +69,7 @@ export default function LandingPage() {
                 href="/verify"
                 className="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
               >
-                Try Demo
+                Launch App
                 <ArrowRight className="w-3.5 h-3.5" />
               </Link>
               <Link
