@@ -338,9 +338,15 @@ NEXT_PUBLIC_BSC_TESTNET_RPC=https://data-seed-prebsc-1-s1.bnbchain.org:8545
    - Layer 5: Decision extraction
 5. Review proof result:
    - **Decision**: NORMAL or CLAIM (insurance payout)
+     - CLAIM is triggered when **2 or more** of these thresholds are exceeded:
+       - Temperature: |T| > 35°C (below -35 or above 35)
+       - Humidity: > 90%
+       - Wind Speed: > 80 km/h
+       - Rainfall: > 150 mm
+     - Otherwise the decision is NORMAL
    - **Proof Size**: ~128KB compressed
    - **Verify Time**: ~2-3 seconds
-   - **Proof Hash**: Keccak256 hash for on-chain storage
+   - **Proof Hash**: SHA-256 hash of proof + input data
 
 #### Step 3: Submit to Blockchain
 

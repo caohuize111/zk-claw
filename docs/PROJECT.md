@@ -67,11 +67,13 @@ This creates an end-to-end trust chain from physical world to on-chain execution
 
 ### Demo Implementation
 
-The current demo showcases a weather insurance use case:
-- Weather station captures temperature/humidity/rainfall data with hardware signature
-- EZKL proves correct execution of weather prediction model
-- Agent submits verifiable proof to trigger parametric insurance payout
-- All verification steps are recorded on-chain for auditability
+The current demo showcases a parametric weather insurance use case:
+- DePIN oracle fetches live weather data from 5 global stations (Open-Meteo API)
+- EZKL proves correct execution of weather prediction model (Halo2 SNARK)
+- CLAIM is triggered when 2+ of these thresholds are exceeded: |T| > 35°C, humidity > 90%, wind > 80 km/h, rainfall > 150mm
+- Agent submits verifiable proof on-chain via ZKClawGateway
+- On CLAIM decision, real insurance payout (0.001 BNB) is sent to Agent's Token Bound Account (ERC-6551)
+- All verification steps and payouts are recorded on-chain for auditability
 
 ## 3. Business & Ecosystem Impact
 
