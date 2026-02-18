@@ -71,7 +71,7 @@ const PRESETS = [
   },
   {
     label: "Heat Wave",
-    values: { temperature: 42, humidity: 30, windSpeed: 5, rainfall: 0, stationId: 1002 },
+    values: { temperature: 45, humidity: 95, windSpeed: 10, rainfall: 2, stationId: 1002 },
   },
   {
     label: "Typhoon",

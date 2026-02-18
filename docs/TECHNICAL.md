@@ -448,10 +448,10 @@ Expected Decision: CLAIM
 #### Heat Wave (Claim Payout)
 ```
 Temperature: 45°C
-Humidity: 10%
-Wind Speed: 5 km/h
-Precipitation: 0mm
-Expected Decision: CLAIM
+Humidity: 95%
+Wind Speed: 10 km/h
+Precipitation: 2mm
+Expected Decision: CLAIM (temp > 35 + humidity > 90 = 2 thresholds)
 ```
 
 ## Additional Resources
