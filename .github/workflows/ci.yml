@@ -22,7 +22,7 @@ jobs:
           cache-dependency-path: contracts/package-lock.json
       - run: npm ci
       - run: npx hardhat compile
-      - run: npx hardhat test --grep "^(?!.*BatchVerifier)" || true
+      - run: npx hardhat test
 
   build-frontend:
     name: Build Frontend
