@@ -22,8 +22,8 @@ createAppKit({
   themeMode: "dark",
   themeVariables: {
     "--w3m-font-family": "'DM Sans', 'Inter', sans-serif",
-    "--w3m-accent": "hsl(158, 64%, 42%)",
-    "--w3m-color-mix": "hsl(24, 8%, 7%)",
+    "--w3m-accent": "#27a76d",
+    "--w3m-color-mix": "#141210",
     "--w3m-color-mix-strength": 20,
     "--w3m-border-radius-master": "2px",
     "--w3m-z-index": 1000,

@@ -81,3 +81,11 @@
 ::-webkit-scrollbar-track { background: hsl(var(--background)); }
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 10px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.4); }
+
+/* AppKit wallet button — match project green theme */
+appkit-button {
+  --w3m-accent: #27a76d;
+}
+appkit-button::part(button) {
+  background-color: #27a76d;
+}
