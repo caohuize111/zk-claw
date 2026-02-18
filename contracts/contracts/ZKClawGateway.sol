@@ -240,13 +240,13 @@ contract ZKClawGateway is ReentrancyGuard {
         emit InferenceSubmitted(agentId, recordIndex, proofHash, verified, decision, dataAuthentic);
     }
 
-    /// @notice Submit inference with off-chain verified proof (admin-attested fallback)
-    /// @dev Admin attests that the proof was verified off-chain via EZKL
+    /// @notice Submit inference with off-chain verified proof (permissionless)
+    /// @dev Proof was verified off-chain via EZKL; anyone can submit
     function submitOffchainVerified(
         uint256[] calldata publicInstances,
         uint256 agentId,
         uint256 stationId
-    ) external onlyAdmin nonReentrant {
+    ) external nonReentrant {
         // Compute proofHash from publicInstances + timestamp + index (prevent hash collision)
         bytes32 proofHash = keccak256(abi.encodePacked(publicInstances, block.timestamp, records.length));
         require(!usedProofs[proofHash], "Proof already used");

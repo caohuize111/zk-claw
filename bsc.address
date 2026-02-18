@@ -34,14 +34,14 @@
     },
     {
       "name": "ZKClawGateway",
-      "address": "0xAEb776BF99f12a2F4D03579dED52D77665769AdB",
-      "explorerLink": "https://testnet.bscscan.com/address/0xAEb776BF99f12a2F4D03579dED52D77665769AdB",
+      "address": "0x54078C19a1828f22297b498278872167667f5A13",
+      "explorerLink": "https://testnet.bscscan.com/address/0x54078C19a1828f22297b498278872167667f5A13",
       "description": "Core gateway - ZKML verification + dual trust (ZK + DePIN)"
     },
     {
       "name": "BatchVerifier",
-      "address": "0x5CF3c212C4Ad86E2b6dca82e8E7ACe7CBb5c0A0E",
-      "explorerLink": "https://testnet.bscscan.com/address/0x5CF3c212C4Ad86E2b6dca82e8E7ACe7CBb5c0A0E",
+      "address": "0xBc7a9bFd87eaf5Eae4c592ED1A15dC88792b5802",
+      "explorerLink": "https://testnet.bscscan.com/address/0xBc7a9bFd87eaf5Eae4c592ED1A15dC88792b5802",
       "description": "Batch ZK proof verification for gas optimization"
     },
     {
