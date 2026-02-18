@@ -522,6 +522,41 @@ export default function VerifyPage() {
               })}
             </div>
 
+            {/* Proof result card -- appears after Layer 2 */}
+            {result && pipelineLayer >= 3 && (
+              <div className="w-full max-w-lg rounded-xl border border-primary/30 bg-card/80 overflow-hidden mt-2 animate-in fade-in duration-500">
+                <div className="p-4 text-center border-b border-border/40">
+                  <div className="text-primary text-sm font-bold">ZK Proof Generated</div>
+                </div>
+                <div className="grid grid-cols-2 divide-x divide-border/40">
+                  <div className="p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Decision</div>
+                    <div className={`text-lg font-bold font-mono ${result.decision === "CLAIM" ? "text-amber-400" : "text-primary"}`}>
+                      {result.decision}
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Proof Size</div>
+                    <div className="text-lg font-bold font-mono text-foreground">
+                      {result.proofSize}<span className="text-xs text-muted-foreground ml-1">bytes</span>
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Verify Time</div>
+                    <div className="text-lg font-bold font-mono text-foreground">
+                      {result.verifyTime}<span className="text-xs text-muted-foreground ml-1">ms</span>
+                    </div>
+                  </div>
+                  <div className="p-3">
+                    <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Proof Hash</div>
+                    <div className="text-[10px] font-mono text-muted-foreground break-all leading-relaxed mt-0.5">
+                      {result.proofHash}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Pulse animation style */}
             <style>{`
               @keyframes pulse-layer {
