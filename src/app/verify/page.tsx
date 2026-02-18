@@ -129,7 +129,7 @@ export default function VerifyPage() {
 
     try {
       // Layer 1: DePIN Capture (simulated hardware data signing)
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       recordLayerTime();
       setPipelineLayer(2);
 
@@ -140,7 +140,7 @@ export default function VerifyPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(weather),
         }),
-        new Promise((resolve) => setTimeout(resolve, 2000)),
+        new Promise((resolve) => setTimeout(resolve, 1500)),
       ]);
 
       if (!res.ok) {
@@ -154,7 +154,7 @@ export default function VerifyPage() {
 
       // Layer 3: Agent Assembly (transaction packaging)
       setPipelineLayer(3);
-      await new Promise((resolve) => setTimeout(resolve, 1200));
+      await new Promise((resolve) => setTimeout(resolve, 800));
       recordLayerTime();
 
       // Layer 4: On-Chain Verify (submit tx)
@@ -186,7 +186,7 @@ export default function VerifyPage() {
 
       // Layer 5: Settlement (record + reputation)
       setPipelineLayer(5);
-      await new Promise((resolve) => setTimeout(resolve, 1500));
+      await new Promise((resolve) => setTimeout(resolve, 1000));
       recordLayerTime();
 
       setStep("complete");
