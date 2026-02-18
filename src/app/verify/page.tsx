@@ -130,12 +130,15 @@ export default function VerifyPage() {
       recordLayerTime();
       setPipelineLayer(2);
 
-      // Layer 2: ZKML Inference (synchronous API call)
-      const res = await fetch("/api/prove", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(weather),
-      });
+      // Layer 2: ZKML Inference (API call + minimum display time)
+      const [res] = await Promise.all([
+        fetch("/api/prove", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(weather),
+        }),
+        new Promise((resolve) => setTimeout(resolve, 2000)), // minimum 2s visible
+      ]);
 
       if (!res.ok) {
         const errData = await res.json();
@@ -190,12 +193,15 @@ export default function VerifyPage() {
         {
           onSuccess: (hash) => {
             recordLayerTime();
-            setPipelineLayer(5);
             setTxHash(hash);
+            // Layer 4 visible for 1.5s before moving to Layer 5
             setTimeout(() => {
-              recordLayerTime();
-              setStep("complete");
-            }, 1000);
+              setPipelineLayer(5);
+              setTimeout(() => {
+                recordLayerTime();
+                setStep("complete");
+              }, 1200);
+            }, 1500);
           },
           onError: (err) => {
             setError(`Chain submission failed: ${err.message}`);
