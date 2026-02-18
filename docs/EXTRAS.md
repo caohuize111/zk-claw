@@ -1,7 +1,7 @@
 # Optional: Demo Video & Presentation
 
-- **Demo video** -- (Coming soon)
-  Link:
+- **Demo video**
+  Link: https://youtu.be/oRXT-nagmQU
 
 - **Slide deck** -- (Coming soon)
   Link:
