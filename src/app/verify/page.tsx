@@ -126,7 +126,7 @@ export default function VerifyPage() {
 
     try {
       // Layer 1: DePIN Capture (simulated hardware data signing)
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       recordLayerTime();
       setPipelineLayer(2);
 
@@ -171,7 +171,7 @@ export default function VerifyPage() {
 
     try {
       // Layer 3: Agent Assembly (transaction packaging)
-      await new Promise((resolve) => setTimeout(resolve, 300));
+      await new Promise((resolve) => setTimeout(resolve, 1200));
       recordLayerTime();
       setPipelineLayer(4);
 
@@ -195,7 +195,7 @@ export default function VerifyPage() {
             setTimeout(() => {
               recordLayerTime();
               setStep("complete");
-            }, 400);
+            }, 1000);
           },
           onError: (err) => {
             setError(`Chain submission failed: ${err.message}`);
