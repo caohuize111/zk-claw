@@ -216,7 +216,7 @@ export default function AgentProfilePage() {
 
         {/* ---- Agent Header Card ---- */}
         <div className="rounded-xl bg-card border border-border p-6 mb-8 card-hover">
-          <div className="flex items-start justify-between gap-6">
+          <div className="flex flex-col-reverse sm:flex-row items-start justify-between gap-4 sm:gap-6">
             {/* Left: Identity */}
             <div className="flex-1 min-w-0">
               <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded bg-primary/10 border border-primary/20 mb-3">

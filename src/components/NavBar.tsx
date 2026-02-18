@@ -63,11 +63,11 @@ function WalletButton() {
   return (
     <button
       onClick={() => open()}
-      className="px-4 py-2 rounded-lg text-sm font-semibold transition-all duration-200 bg-primary hover:bg-primary/90 text-primary-foreground"
+      className="px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm font-semibold transition-all duration-200 bg-primary hover:bg-primary/90 text-primary-foreground"
     >
       {isConnected && address
         ? `${address.slice(0, 6)}...${address.slice(-4)}`
-        : "Connect Wallet"}
+        : "Connect"}
     </button>
   );
 }

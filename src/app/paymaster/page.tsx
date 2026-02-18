@@ -263,7 +263,7 @@ export default function PaymasterPage() {
             <Search className="w-4 h-4 text-primary" />
             <h2 className="text-base font-semibold">Check Agent Approval</h2>
           </div>
-          <div className="flex gap-3">
+          <div className="flex flex-col sm:flex-row gap-3">
             <input
               type="text"
               placeholder="0x... agent address"
@@ -274,7 +274,7 @@ export default function PaymasterPage() {
             <button
               onClick={handleCheck}
               disabled={!checkAddr}
-              className="px-5 py-2.5 rounded-lg font-semibold text-sm bg-primary/10 text-primary border border-primary/30 cursor-pointer hover:bg-primary/20 transition-all duration-200 flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+              className="px-5 py-2.5 rounded-lg font-semibold text-sm bg-primary/10 text-primary border border-primary/30 cursor-pointer hover:bg-primary/20 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               <Search className="w-4 h-4" />
               Check

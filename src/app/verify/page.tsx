@@ -242,7 +242,7 @@ export default function VerifyPage() {
                     />
                   </div>
                   <span
-                    className={`text-[11px] font-medium whitespace-nowrap ${
+                    className={`text-[11px] font-medium whitespace-nowrap hidden sm:block ${
                       isActive ? "text-primary" : "text-muted-foreground/50"
                     }`}
                   >
@@ -251,7 +251,7 @@ export default function VerifyPage() {
                 </div>
                 {i < STEPS.length - 1 && (
                   <div
-                    className={`flex-1 h-px mx-3 mt-[-18px] transition-colors duration-500 ${
+                    className={`flex-1 h-px mx-2 sm:mx-3 mt-[-18px] sm:mt-[-18px] transition-colors duration-500 ${
                       i < stepIndex ? "bg-primary/40" : "bg-border/50"
                     }`}
                   />

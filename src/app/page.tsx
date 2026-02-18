@@ -81,7 +81,7 @@ export default function LandingPage() {
             </div>
 
             {/* Inline stats */}
-            <div className="flex gap-8 text-sm">
+            <div className="grid grid-cols-2 sm:flex gap-6 sm:gap-8 text-sm">
               {[
                 { value: stats.agentCount, label: "Agents" },
                 { value: stats.totalVerifications, label: "Verifications" },
@@ -159,7 +159,7 @@ export default function LandingPage() {
         {/* Architecture — clean 4-col grid */}
         <section className="pb-16">
           <h2 className="text-lg font-semibold mb-5">Architecture</h2>
-          <div className="grid sm:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             {[
               {
                 title: "DePIN Oracle",
