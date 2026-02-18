@@ -63,3 +63,32 @@ This project was built with AI assistance (Claude Code / Claude Opus). Below is 
 | AI Contribution | Code generation, test writing, documentation, CI setup |
 
 All AI-generated code was reviewed, tested, and validated by the developer before deployment.
+
+## Development Screenshots
+
+The following screenshots capture the AI-assisted development process using Claude Code (CLI tool for Claude Opus):
+
+### 1. Smart Contract Generation
+
+![Contract Generation](screenshots/01-contract-generation.png)
+
+Claude Code generating core Solidity contracts:
+- `ZKClawGateway.sol` (220 lines) -- Main verifiable intelligence gateway
+- `MockVerifier.sol` (15 lines) -- Test mock for Halo2Verifier
+
+### 2. Test Suite & Deployment Script Generation
+
+![Test and Deploy Generation](screenshots/02-test-deploy-generation.png)
+
+Claude Code generating test infrastructure and deployment automation:
+- `ZKClaw.test.ts` (259 lines) -- Comprehensive test suite covering all contract interactions
+- `deploy.ts` (80 lines) -- BSC Testnet deployment script with 5-step sequential deployment
+
+### 3. Day 1 Progress & Frontend Setup
+
+![Frontend Setup](screenshots/03-frontend-setup.png)
+
+Day 1 progress summary and frontend scaffolding:
+- ZKML Pipeline: Training -> ONNX -> Proof -> Verification (all passing)
+- 6 Solidity contracts deployed, 21 tests passing
+- Frontend setup with Next.js 14 (`package.json`, `tsconfig.json`)
