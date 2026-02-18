@@ -3,8 +3,9 @@
 import { NavBar } from "@/components/NavBar";
 import { useState, useRef } from "react";
 import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { parseEther } from "viem";
 import { CONTRACTS } from "@/lib/wagmi-config";
-import { GATEWAY_ABI } from "@/lib/contracts";
+import { GATEWAY_ABI, NFA_FULL_ABI } from "@/lib/contracts";
 import {
   CloudRain,
   Cpu,
@@ -107,8 +108,14 @@ export default function VerifyPage() {
   const layerStartRef = useRef<number>(0);
 
   const { writeContract, isPending: isWriting } = useWriteContract();
+  const { writeContract: writePayout, isPending: isPayingOut } = useWriteContract();
+  const [payoutTxHash, setPayoutTxHash] = useState<string | null>(null);
+  const [payoutDone, setPayoutDone] = useState(false);
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
     hash: txHash as `0x${string}` | undefined,
+  });
+  const { isLoading: isConfirmingPayout, isSuccess: isPayoutConfirmed } = useWaitForTransactionReceipt({
+    hash: payoutTxHash as `0x${string}` | undefined,
   });
 
   const stepIndex = (["input", "proving", "submitting", "complete"] as const).indexOf(step);
@@ -228,13 +235,38 @@ export default function VerifyPage() {
     return BigInt("0x" + beHex);
   };
 
+  const handlePayout = () => {
+    if (!isConnected) return;
+    writePayout(
+      {
+        address: CONTRACTS.NFA as `0x${string}`,
+        abi: NFA_FULL_ABI,
+        functionName: "fundAgent",
+        args: [BigInt(agentId)],
+        value: parseEther("0.001"),
+      },
+      {
+        onSuccess: (hash) => {
+          setPayoutTxHash(hash);
+          setPayoutDone(true);
+        },
+        onError: (err) => {
+          setError(`Payout failed: ${err.message}`);
+        },
+      }
+    );
+  };
+
   const handleReset = () => {
     setStep("input");
     setResult(null);
     setError(null);
     setTxHash(null);
+    setPayoutTxHash(null);
+    setPayoutDone(false);
     setPipelineLayer(0);
     setLayerTimes([]);
+    setLiveSource(null);
   };
 
   return (
@@ -815,12 +847,14 @@ export default function VerifyPage() {
               <div className="p-5 rounded-xl border border-amber-500/30 bg-amber-500/5">
                 <div className="flex items-center gap-2 mb-3">
                   <AlertTriangle className="w-5 h-5 text-amber-400" />
-                  <span className="text-base font-semibold text-amber-400">Insurance Payout Triggered</span>
+                  <span className="text-base font-semibold text-amber-400">
+                    {payoutDone ? "Insurance Payout Settled" : "Insurance Payout Available"}
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
+                <div className="grid grid-cols-2 gap-4 text-sm mb-4">
                   <div>
                     <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Payout Amount</div>
-                    <div className="text-xl font-bold font-mono text-amber-400">0.01 BNB</div>
+                    <div className="text-xl font-bold font-mono text-amber-400">0.001 BNB</div>
                   </div>
                   <div>
                     <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Recipient</div>
@@ -834,13 +868,35 @@ export default function VerifyPage() {
                     <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Status</div>
                     <div className="flex items-center gap-1.5">
                       <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                        <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${payoutDone ? "bg-emerald-400" : "bg-amber-400"} opacity-75`} />
+                        <span className={`relative inline-flex rounded-full h-2 w-2 ${payoutDone ? "bg-emerald-500" : "bg-amber-500"}`} />
                       </span>
-                      <span className="text-sm font-mono text-emerald-400">Settled</span>
+                      <span className={`text-sm font-mono ${payoutDone ? "text-emerald-400" : "text-amber-400"}`}>
+                        {payoutDone ? "Settled" : "Pending"}
+                      </span>
                     </div>
                   </div>
                 </div>
+                {!payoutDone ? (
+                  <button
+                    onClick={handlePayout}
+                    disabled={isPayingOut || isConfirmingPayout}
+                    className="w-full py-2.5 rounded-lg font-semibold text-sm bg-amber-500/20 text-amber-400 border border-amber-500/30 cursor-pointer hover:bg-amber-500/30 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {(isPayingOut || isConfirmingPayout) && <Loader2 className="w-4 h-4 animate-spin" />}
+                    {isPayingOut ? "Signing Payout..." : isConfirmingPayout ? "Confirming..." : "Trigger Payout (0.001 BNB)"}
+                  </button>
+                ) : (
+                  <a
+                    href={`https://testnet.bscscan.com/tx/${payoutTxHash}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 rounded-lg text-sm font-mono text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 flex items-center justify-center gap-2 hover:bg-emerald-500/20 transition-all"
+                  >
+                    <ExternalLink className="w-3.5 h-3.5" />
+                    Payout TX: {payoutTxHash?.slice(0, 10)}...{payoutTxHash?.slice(-8)}
+                  </a>
+                )}
               </div>
             )}
 
