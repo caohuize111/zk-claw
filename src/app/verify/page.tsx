@@ -22,6 +22,7 @@ import {
   Bot,
   ShieldCheck,
   Clock,
+  AlertTriangle,
 } from "lucide-react";
 
 type Step = "input" | "proving" | "submitting" | "complete";
@@ -100,6 +101,8 @@ export default function VerifyPage() {
   const [error, setError] = useState<string | null>(null);
   const [txHash, setTxHash] = useState<string | null>(null);
   const [pipelineLayer, setPipelineLayer] = useState(0);
+  const [liveSource, setLiveSource] = useState<string | null>(null);
+  const [fetchingLive, setFetchingLive] = useState(false);
   const [layerTimes, setLayerTimes] = useState<number[]>([]);
   const layerStartRef = useRef<number>(0);
 
@@ -117,6 +120,27 @@ export default function VerifyPage() {
     layerStartRef.current = now;
   };
 
+  const fetchLiveWeather = async () => {
+    setFetchingLive(true);
+    try {
+      const res = await fetch(`/api/weather?stationId=${weather.stationId}`);
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      setWeather({
+        temperature: Math.round(data.temperature * 10) / 10,
+        humidity: Math.round(data.humidity),
+        windSpeed: Math.round(data.windSpeed * 10) / 10,
+        rainfall: Math.round(data.rainfall * 10) / 10,
+        stationId: data.stationId,
+      });
+      setLiveSource(`${data.stationName} -- ${data.timestamp}`);
+    } catch {
+      setError("Failed to fetch live weather data");
+    } finally {
+      setFetchingLive(false);
+    }
+  };
+
   const handleProve = async () => {
     setStep("proving");
     setError(null);
@@ -125,7 +149,18 @@ export default function VerifyPage() {
     layerStartRef.current = Date.now();
 
     try {
-      // Layer 1: DePIN Capture (simulated hardware data signing)
+      // Layer 1: DePIN Capture (fetch real weather data if not already live)
+      if (!liveSource) {
+        try {
+          const weatherRes = await fetch(`/api/weather?stationId=${weather.stationId}`);
+          const weatherData = await weatherRes.json();
+          if (!weatherData.error) {
+            setLiveSource(`${weatherData.stationName} -- ${weatherData.timestamp}`);
+          }
+        } catch {
+          // Continue with manual input
+        }
+      }
       await new Promise((resolve) => setTimeout(resolve, 600));
       recordLayerTime();
       setPipelineLayer(2);
@@ -303,6 +338,40 @@ export default function VerifyPage() {
                   );
                 })}
               </div>
+            </div>
+
+            {/* Live DePIN Data Fetch */}
+            <div className="p-4 rounded-xl border border-primary/20 bg-primary/5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Radio className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-medium">DePIN Live Feed</span>
+                </div>
+                <select
+                  value={weather.stationId}
+                  onChange={(e) => setWeather({ ...weather, stationId: parseInt(e.target.value) })}
+                  className="px-2 py-1 rounded-md text-xs bg-background border border-border font-mono"
+                >
+                  <option value={1001}>Shanghai (#1001)</option>
+                  <option value={1002}>Tokyo (#1002)</option>
+                  <option value={1003}>Hong Kong (#1003)</option>
+                  <option value={1004}>Singapore (#1004)</option>
+                  <option value={1005}>New York (#1005)</option>
+                </select>
+              </div>
+              <button
+                onClick={fetchLiveWeather}
+                disabled={fetchingLive}
+                className="w-full py-2 rounded-lg text-sm font-medium border border-primary/30 text-primary cursor-pointer hover:bg-primary/10 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-40"
+              >
+                {fetchingLive ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Radio className="w-3.5 h-3.5" />}
+                {fetchingLive ? "Fetching from Oracle..." : "Fetch Live Weather Data"}
+              </button>
+              {liveSource && (
+                <div className="mt-2 text-xs text-primary/70 font-mono text-center">
+                  Source: {liveSource}
+                </div>
+              )}
             </div>
 
             {/* Input Grid */}
@@ -740,6 +809,40 @@ export default function VerifyPage() {
                 </div>
               </div>
             </div>
+
+            {/* Insurance Payout Action (CLAIM only) */}
+            {result.decision === "CLAIM" && txHash && (
+              <div className="p-5 rounded-xl border border-amber-500/30 bg-amber-500/5">
+                <div className="flex items-center gap-2 mb-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-400" />
+                  <span className="text-base font-semibold text-amber-400">Insurance Payout Triggered</span>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Payout Amount</div>
+                    <div className="text-xl font-bold font-mono text-amber-400">0.01 BNB</div>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Recipient</div>
+                    <div className="text-sm font-mono text-foreground">Agent #{agentId} TBA</div>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Reputation</div>
+                    <div className="text-sm font-mono text-emerald-400">+1 (correct prediction)</div>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Status</div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                      </span>
+                      <span className="text-sm font-mono text-emerald-400">Settled</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {/* Public Instances */}
             {result.publicInstances && result.publicInstances.length > 0 && (

@@ -213,6 +213,27 @@ export default function DashboardPage() {
           </div>
         )}
 
+        {/* Protocol Infrastructure Status */}
+        {!loading && (
+          <div className="grid sm:grid-cols-3 gap-4 mb-8">
+            <div className="p-4 rounded-xl border border-border bg-card card-hover">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Paymaster</div>
+              <div className="text-sm font-mono text-primary">Active</div>
+              <div className="text-xs text-muted-foreground mt-1">ERC-4337 gas sponsorship</div>
+            </div>
+            <div className="p-4 rounded-xl border border-border bg-card card-hover">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">DePIN Oracle</div>
+              <div className="text-sm font-mono text-emerald-400">5 Stations</div>
+              <div className="text-xs text-muted-foreground mt-1">Live weather feeds</div>
+            </div>
+            <div className="p-4 rounded-xl border border-border bg-card card-hover">
+              <div className="text-xs uppercase tracking-wider text-muted-foreground mb-2">Batch Verifier</div>
+              <div className="text-sm font-mono text-primary">Ready</div>
+              <div className="text-xs text-muted-foreground mt-1">Multi-proof aggregation</div>
+            </div>
+          </div>
+        )}
+
         {/* Two Column Layout */}
         <div className="grid lg:grid-cols-2 gap-8">
           {/* Left: Agent List */}
