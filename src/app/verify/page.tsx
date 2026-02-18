@@ -126,7 +126,7 @@ export default function VerifyPage() {
 
     try {
       // Layer 1: DePIN Capture (simulated hardware data signing)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      await new Promise((resolve) => setTimeout(resolve, 600));
       recordLayerTime();
       setPipelineLayer(2);
 
@@ -137,7 +137,7 @@ export default function VerifyPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(weather),
         }),
-        new Promise((resolve) => setTimeout(resolve, 1500)),
+        new Promise((resolve) => setTimeout(resolve, 800)),
       ]);
 
       if (!res.ok) {
