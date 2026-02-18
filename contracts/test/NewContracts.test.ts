@@ -491,6 +491,75 @@ describe("New Contracts", () => {
       const balAfter = await ethers.provider.getBalance(user2.address);
       assert.equal(balAfter, balBefore, "No payout should happen on NORMAL decision");
     });
+
+    it("should fund insurance pool via fundInsurancePool()", async () => {
+      const amount = ethers.parseEther("0.1");
+      const tx = await gateway.fundInsurancePool({ value: amount });
+      const receipt = await tx.wait();
+      const poolBal = await gateway.insurancePoolBalance();
+      assert.ok(poolBal >= amount, "Insurance pool should hold deposited BNB");
+    });
+
+    it("should accept direct BNB transfer to insurance pool", async () => {
+      const balBefore = await gateway.insurancePoolBalance();
+      await admin.sendTransaction({ to: await gateway.getAddress(), value: ethers.parseEther("0.05") });
+      const balAfter = await gateway.insurancePoolBalance();
+      assert.ok(balAfter > balBefore, "Direct transfer should increase pool balance");
+    });
+
+    it("should set default payout amount", async () => {
+      await gateway.setDefaultPayout(ethers.parseEther("0.002"));
+      assert.equal(await gateway.defaultPayoutAmount(), ethers.parseEther("0.002"));
+    });
+
+    it("should pay from insurance pool when no agent-specific config", async () => {
+      // Clear agent-specific payout
+      await gateway.setClaimPayout(0, ethers.ZeroAddress, 0);
+      // Set default payout
+      await gateway.setDefaultPayout(ethers.parseEther("0.002"));
+
+      await submitFreshStationData();
+      const balBefore = await ethers.provider.getBalance(admin.address);
+
+      // CLAIM decision: out1 > out0
+      const tx = await gateway.submitOffchainVerified([1003n, 2003n, 3003n, 4003n, 5003n, 6003n], 0, 201);
+      const receipt = await tx.wait();
+      const gasUsed = receipt!.gasUsed * receipt!.gasPrice;
+
+      const balAfter = await ethers.provider.getBalance(admin.address);
+      // admin (msg.sender) should receive payout minus gas
+      const netChange = balAfter - balBefore + gasUsed;
+      assert.ok(netChange > 0n, "Submitter should receive insurance pool payout");
+    });
+
+    it("should prefer agent-specific config over insurance pool", async () => {
+      // Set both agent-specific and default
+      await nfa.fundAgent(0, { value: ethers.parseEther("0.01") });
+      await gateway.setClaimPayout(0, user2.address, ethers.parseEther("0.001"));
+      await gateway.setDefaultPayout(ethers.parseEther("0.002"));
+
+      await submitFreshStationData();
+      const user2BalBefore = await ethers.provider.getBalance(user2.address);
+
+      // CLAIM decision
+      await gateway.submitOffchainVerified([1004n, 2004n, 3004n, 4004n, 5004n, 6004n], 0, 201);
+
+      const user2BalAfter = await ethers.provider.getBalance(user2.address);
+      assert.ok(user2BalAfter > user2BalBefore, "Agent-specific payout should take priority");
+    });
+
+    it("should not pay from pool on NORMAL decision", async () => {
+      await gateway.setClaimPayout(0, ethers.ZeroAddress, 0);
+      await gateway.setDefaultPayout(ethers.parseEther("0.002"));
+      const poolBefore = await gateway.insurancePoolBalance();
+
+      await submitFreshStationData();
+      // NORMAL: out0 > out1
+      await gateway.submitOffchainVerified([1005n, 2005n, 3005n, 4005n, 6005n, 5005n], 0, 201);
+
+      const poolAfter = await gateway.insurancePoolBalance();
+      assert.equal(poolAfter, poolBefore, "Pool should not decrease on NORMAL decision");
+    });
   });
 
   // ═══════════════════════════════════════════════════════════════

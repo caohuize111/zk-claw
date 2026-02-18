@@ -58,7 +58,7 @@ contract BatchVerifier {
         _;
     }
 
-    constructor(address _verifier, address _gateway) {
+    constructor(address _verifier, address payable _gateway) {
         verifier = IHalo2Verifier(_verifier);
         gateway = ZKClawGateway(_gateway);
         admin = msg.sender;
@@ -271,7 +271,7 @@ contract BatchVerifier {
         verifier = IHalo2Verifier(_verifier);
     }
 
-    function setGateway(address _gateway) external onlyAdmin {
+    function setGateway(address payable _gateway) external onlyAdmin {
         gateway = ZKClawGateway(_gateway);
     }
 

@@ -145,19 +145,19 @@ async function main() {
   console.log("\n--- Phase 4: Initialize Demo State ---\n");
 
   // Set gateway on NFA
-  console.log("[1/8] Setting NFA gateway...");
+  console.log("[1/10] Setting NFA gateway...");
   let tx = await nfa.setGateway(gatewayAddr);
   await tx.wait();
   console.log("  NFA gateway set to:", gatewayAddr);
 
   // Register weather station
-  console.log("[2/8] Registering DePIN weather station (stationId=1001)...");
+  console.log("[2/10] Registering DePIN weather station (stationId=1001)...");
   tx = await depinOracle.registerStation(1001, deployer.address);
   await tx.wait();
   console.log("  Station 1001 registered, hardware key:", deployer.address);
 
   // Submit hardware-signed weather data (read nonce from contract for safety)
-  console.log("[3/8] Submitting hardware-signed weather data...");
+  console.log("[3/10] Submitting hardware-signed weather data...");
   const currentNonce = await depinOracle.stationNonces(1001);
   const dataHash = ethers.solidityPackedKeccak256(
     ["uint256", "int256", "uint256", "uint256", "uint256", "uint256"],
@@ -170,7 +170,7 @@ async function main() {
   console.log("  Weather data submitted, signature verified:", isAuth);
 
   // Mint demo NFA agent (BAP-578 full metadata)
-  console.log("[4/8] Minting NFA agent (WeatherGuard-01)...");
+  console.log("[4/10] Minting NFA agent (WeatherGuard-01)...");
   tx = await nfa.mint({
     name: "WeatherGuard-01",
     persona: "DePIN Insurance Analyst -- Verifiable AI Agent",
@@ -184,13 +184,13 @@ async function main() {
   console.log("  Agent minted: tokenId=0");
 
   // Bind gateway as logic contract
-  console.log("[5/8] Binding ZKClawGateway as agent logic...");
+  console.log("[5/10] Binding ZKClawGateway as agent logic...");
   tx = await nfa.setLogicAddress(0, gatewayAddr);
   await tx.wait();
   console.log("  Gateway bound to agent 0");
 
   // Submit a demo off-chain verified inference
-  console.log("[6/8] Submitting demo inference (claim triggered)...");
+  console.log("[6/10] Submitting demo inference (claim triggered)...");
   // instances where index[5] > index[4] => decision = CLAIM
   const publicInstances = [100n, 200n, 300n, 400n, 500n, 600n];
   tx = await gateway.submitOffchainVerified(publicInstances, 0, 1001);
@@ -199,7 +199,7 @@ async function main() {
   console.log("  Inference submitted, reputation:", profile.reputationScore.toString());
 
   // Anchor to Greenfield
-  console.log("[7/8] Anchoring proof to Greenfield...");
+  console.log("[7/10] Anchoring proof to Greenfield...");
   const contentHash = ethers.keccak256(ethers.toUtf8Bytes(
     JSON.stringify({
       proof: "demo-proof-extreme-weather",
@@ -218,10 +218,22 @@ async function main() {
   console.log("  Proof anchored to gnfd://zk-claw-bucket/proof-demo-001");
 
   // Authorize gateway as slasher on StakeSlash
-  console.log("[8/8] Authorizing Gateway as slasher on StakeSlash...");
+  console.log("[8/10] Authorizing Gateway as slasher on StakeSlash...");
   tx = await stakeSlash.authorizeSlasher(gatewayAddr);
   await tx.wait();
   console.log("  Gateway authorized as slasher");
+
+  // Configure insurance pool
+  console.log("[9/10] Setting default insurance payout (0.001 BNB per CLAIM)...");
+  tx = await gateway.setDefaultPayout(ethers.parseEther("0.001"));
+  await tx.wait();
+  console.log("  Default payout set: 0.001 BNB");
+
+  console.log("[10/10] Funding insurance pool (0.05 BNB)...");
+  tx = await gateway.fundInsurancePool({ value: ethers.parseEther("0.05") });
+  await tx.wait();
+  const poolBal = await gateway.insurancePoolBalance();
+  console.log("  Insurance pool funded:", ethers.formatEther(poolBal), "BNB");
 
   // ============================================
   // Summary
@@ -250,6 +262,8 @@ async function main() {
   console.log(`    Demo Station:           stationId=1001`);
   console.log(`    Hardware Sig Verified:  ${isAuth}`);
   console.log(`    Reputation Score:       ${profile.reputationScore}`);
+  console.log(`    Insurance Pool:         ${ethers.formatEther(poolBal)} BNB`);
+  console.log(`    Default Payout:         0.001 BNB per CLAIM`);
   console.log("=".repeat(60));
 
   // Write addresses to file for frontend

@@ -2,7 +2,8 @@
 
 import { NavBar } from "@/components/NavBar";
 import { useState, useRef } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useWriteContract, useWaitForTransactionReceipt, usePublicClient } from "wagmi";
+import { formatEther, decodeEventLog } from "viem";
 import { CONTRACTS } from "@/lib/wagmi-config";
 import { GATEWAY_ABI } from "@/lib/contracts";
 import {
@@ -104,7 +105,9 @@ export default function VerifyPage() {
   const [fetchingLive, setFetchingLive] = useState(false);
   const [layerTimes, setLayerTimes] = useState<number[]>([]);
   const layerStartRef = useRef<number>(0);
+  const [payoutInfo, setPayoutInfo] = useState<{ address: string; amount: bigint } | null>(null);
 
+  const publicClient = usePublicClient();
   const { writeContract, isPending: isWriting } = useWriteContract();
   const { isLoading: isConfirming } = useWaitForTransactionReceipt({
     hash: txHash as `0x${string}` | undefined,
@@ -191,7 +194,7 @@ export default function VerifyPage() {
   };
 
   const handleSubmitOnChain = async () => {
-    if (!result || !isConnected) return;
+    if (!result || !isConnected || !publicClient) return;
 
     setPipelineLayer(3);
     layerStartRef.current = Date.now();
@@ -208,9 +211,32 @@ export default function VerifyPage() {
         ],
       },
       {
-        onSuccess: (hash) => {
+        onSuccess: async (hash) => {
           setTxHash(hash);
           setStep("complete");
+
+          // Parse receipt for ClaimPayoutTriggered event
+          try {
+            const receipt = await publicClient.waitForTransactionReceipt({ hash });
+            for (const log of receipt.logs) {
+              try {
+                const decoded = decodeEventLog({
+                  abi: GATEWAY_ABI,
+                  data: log.data,
+                  topics: log.topics,
+                });
+                if (decoded.eventName === "ClaimPayoutTriggered") {
+                  const args = decoded.args as { payoutAddress: string; amount: bigint };
+                  setPayoutInfo({ address: args.payoutAddress, amount: args.amount });
+                  break;
+                }
+              } catch {
+                // Not a matching event, skip
+              }
+            }
+          } catch {
+            // Receipt parsing failed, non-critical
+          }
         },
         onError: (err) => {
           setError(`Chain submission failed: ${err.message}`);
@@ -232,6 +258,7 @@ export default function VerifyPage() {
     setResult(null);
     setError(null);
     setTxHash(null);
+    setPayoutInfo(null);
     setPipelineLayer(0);
     setLayerTimes([]);
     setLiveSource(null);
@@ -812,38 +839,52 @@ export default function VerifyPage() {
 
             {/* Insurance Payout Result (CLAIM only) */}
             {result.decision === "CLAIM" && txHash && (
-              <div className="p-5 rounded-xl border border-emerald-500/30 bg-emerald-500/5">
-                <div className="flex items-center gap-2 mb-3">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400" />
-                  <span className="text-base font-semibold text-emerald-400">Insurance Payout Executed</span>
-                </div>
-                <div className="text-sm text-muted-foreground mb-4">
-                  Gateway contract automatically triggered payout via <span className="font-mono text-primary">_handleAutoPayout</span>
-                </div>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Payout</div>
-                    <div className="text-lg font-bold font-mono text-emerald-400">Auto-settled</div>
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Recipient</div>
-                    <div className="text-sm font-mono text-foreground">Agent #{agentId} TBA</div>
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Reputation</div>
-                    <div className="text-sm font-mono text-emerald-400">+1 (correct prediction)</div>
-                  </div>
-                  <div>
-                    <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Settlement</div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="relative flex h-2 w-2">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                      </span>
-                      <span className="text-sm font-mono text-emerald-400">On-chain confirmed</span>
+              <div className={`p-5 rounded-xl border ${payoutInfo ? "border-emerald-500/30 bg-emerald-500/5" : "border-border/60 bg-card/50"}`}>
+                {payoutInfo ? (
+                  <>
+                    <div className="flex items-center gap-2 mb-3">
+                      <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                      <span className="text-base font-semibold text-emerald-400">Insurance Payout Executed</span>
+                    </div>
+                    <div className="text-sm text-muted-foreground mb-4">
+                      Gateway insurance pool automatically paid out via <span className="font-mono text-primary">_handleAutoPayout</span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div>
+                        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Amount</div>
+                        <div className="text-lg font-bold font-mono text-emerald-400">
+                          {formatEther(payoutInfo.amount)} BNB
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Recipient</div>
+                        <div className="text-sm font-mono text-foreground truncate">
+                          {payoutInfo.address.slice(0, 10)}...{payoutInfo.address.slice(-8)}
+                        </div>
+                      </div>
+                      <div>
+                        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Reputation</div>
+                        <div className="text-sm font-mono text-emerald-400">+1 (correct prediction)</div>
+                      </div>
+                      <div>
+                        <div className="text-xs uppercase tracking-wider text-muted-foreground mb-1">Settlement</div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="relative flex h-2 w-2">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                            <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                          </span>
+                          <span className="text-sm font-mono text-emerald-400">On-chain confirmed</span>
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center py-2">
+                    <div className="text-sm text-muted-foreground">
+                      CLAIM recorded on-chain. No insurance payout configured for Agent #{agentId}.
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             )}
 

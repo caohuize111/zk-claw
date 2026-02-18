@@ -124,6 +124,43 @@ export const GATEWAY_ABI = [
     stateMutability: "view",
     type: "function",
   },
+  {
+    inputs: [],
+    name: "insurancePoolBalance",
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "defaultPayoutAmount",
+    outputs: [{ type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "agentId", type: "uint256" },
+      { indexed: false, name: "payoutAddress", type: "address" },
+      { indexed: false, name: "amount", type: "uint256" },
+    ],
+    name: "ClaimPayoutTriggered",
+    type: "event",
+  },
+  {
+    anonymous: false,
+    inputs: [
+      { indexed: true, name: "agentId", type: "uint256" },
+      { indexed: true, name: "recordIndex", type: "uint256" },
+      { indexed: false, name: "proofHash", type: "bytes32" },
+      { indexed: false, name: "verified", type: "bool" },
+      { indexed: false, name: "decision", type: "uint8" },
+      { indexed: false, name: "dataAuthentic", type: "bool" },
+    ],
+    name: "InferenceSubmitted",
+    type: "event",
+  },
 ] as const;
 
 export const NFA_ABI = [

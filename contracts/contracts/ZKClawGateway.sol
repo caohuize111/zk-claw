@@ -75,6 +75,9 @@ contract ZKClawGateway is ReentrancyGuard {
     mapping(uint256 => address) public claimPayoutAddresses;
     mapping(uint256 => uint256) public claimPayoutAmounts;
 
+    // Insurance pool: default payout from contract balance when no agent-specific config
+    uint256 public defaultPayoutAmount;
+
     // BatchVerifier authorization (for aggregated reputation updates)
     address public batchVerifierAddress;
 
@@ -103,6 +106,8 @@ contract ZKClawGateway is ReentrancyGuard {
     );
     event ValidationRegistryError(uint256 indexed agentId, bytes32 proofHash, string reason);
     event ClaimPayoutSet(uint256 indexed agentId, address payoutAddress, uint256 amount);
+    event InsurancePoolFunded(address indexed funder, uint256 amount);
+    event DefaultPayoutUpdated(uint256 amount);
     event BatchVerifierUpdated(address indexed newBatchVerifier);
     event DeviceUnbound(uint256 indexed stationId);
     event DataAnchored(
@@ -527,10 +532,14 @@ contract ZKClawGateway is ReentrancyGuard {
         }
     }
 
-    /// @dev Handle auto claim payout if decision == 1. Clears payout amount after success
-    ///      to prevent repeated drain from multiple submissions.
+    /// @dev Handle auto claim payout if decision == 1.
+    ///      Priority 1: Agent-specific config (from setClaimPayout) -- withdraws from TBA.
+    ///      Priority 2: Insurance pool (contract balance) -- pays msg.sender directly.
     function _handleAutoPayout(uint256 agentId, uint8 decision) internal {
-        if (decision == 1 && claimPayoutAddresses[agentId] != address(0) && claimPayoutAmounts[agentId] > 0) {
+        if (decision != 1) return;
+
+        // Priority 1: Agent-specific payout (one-shot, clears after success)
+        if (claimPayoutAddresses[agentId] != address(0) && claimPayoutAmounts[agentId] > 0) {
             uint256 amount = claimPayoutAmounts[agentId];
             address payoutAddr = claimPayoutAddresses[agentId];
             // Clear payout BEFORE external call (CEI pattern)
@@ -540,6 +549,16 @@ contract ZKClawGateway is ReentrancyGuard {
             } catch {
                 // Restore on failure so admin can retry
                 claimPayoutAmounts[agentId] = amount;
+            }
+            return;
+        }
+
+        // Priority 2: Insurance pool -- pay from contract balance to submitter
+        if (defaultPayoutAmount > 0 && address(this).balance >= defaultPayoutAmount) {
+            uint256 amount = defaultPayoutAmount;
+            (bool ok, ) = payable(msg.sender).call{value: amount}("");
+            if (ok) {
+                emit ClaimPayoutTriggered(agentId, msg.sender, amount);
             }
         }
     }
@@ -567,7 +586,33 @@ contract ZKClawGateway is ReentrancyGuard {
         return records.length;
     }
 
+    // --- Insurance Pool ---
+
+    /// @notice Fund the insurance pool (anyone can deposit BNB)
+    function fundInsurancePool() external payable {
+        require(msg.value > 0, "Must send BNB");
+        emit InsurancePoolFunded(msg.sender, msg.value);
+    }
+
+    /// @notice Accept direct BNB transfers into the insurance pool
+    receive() external payable {
+        if (msg.value > 0) {
+            emit InsurancePoolFunded(msg.sender, msg.value);
+        }
+    }
+
+    /// @notice View the current insurance pool balance
+    function insurancePoolBalance() external view returns (uint256) {
+        return address(this).balance;
+    }
+
     // --- Admin ---
+
+    /// @notice Set the default payout amount from insurance pool per CLAIM
+    function setDefaultPayout(uint256 amount) external onlyAdmin {
+        defaultPayoutAmount = amount;
+        emit DefaultPayoutUpdated(amount);
+    }
 
     function setClaimPayout(uint256 agentId, address payoutAddress, uint256 amount) external onlyAdmin {
         require(payoutAddress != address(0) || amount == 0, "Invalid payout config");
